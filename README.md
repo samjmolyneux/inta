@@ -1,2 +1,2 @@
-# Inta
+# inta
 Interactive ML Plots
