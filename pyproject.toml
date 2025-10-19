@@ -1,0 +1,107 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools-scm", "setuptools"]
+
+[project]
+authors = [
+    {name = "Sam Molyneux"}
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed", 
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Natural Language :: English",
+]
+dependencies = [
+]
+description = "Interactive Plots for ML"
+license = "MIT"
+license-files = ["LICEN[CS]E*"] 
+name = "inta"
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = [
+  "machine learning", "ml", "data science",
+  "visualization", "visualisation", "interactive", "plots", "graphs",
+  "model evaluation",
+  "explainability", "xai",
+  "browser",
+  "plotting", 
+]
+# TODO: Need to make version dynamic properly
+version = "0.0.1a0"
+
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "pytest",
+    "ruff",
+]
+
+
+[tool.mypy]
+strict=true
+warn_unreachable = true
+disable_error_code = [
+    'import-untyped',
+    'no-any-return'
+]
+enable_error_code = ["ignore-without-code"]
+
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib"
+]
+
+[tool.ruff]
+show-fixes = true
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+ignore = [
+  "ANN401",  # Disallow `Any` in annotations. 
+  "C901",    # Function too complex (McCabe).
+  "COM812",  # Missing trailing comma (multi-line).
+  "D203",    # Blank line before class docstring.
+  "D212",    # Multi-line docstring summary on first line.
+  "FBT001",  # Boolean positional arg in definition.
+  "FBT002",  # Boolean default for positional arg.
+  "N803",    # Argument name not snake_case.
+  "N806",    # Non-lowercase variable in function.
+  "PLR0912", # Too many branches.
+  "PLR0913", # Too many arguments.
+  "PLR0915", # Too many statements.
+  "RET504",  # Unnecessary assign before return.
+  "S106",    # Hardcoded password in call.
+  "T201",    # `print` found.
+  "T203",    # `pprint` found.
+]
+select = ["ALL"]
+
+[tool.tomlsort]
+all = true
+ignore_case = true
+in_place = true
+spaces_before_inline_comment = 2
+spaces_indent_inline_array = 4
+overrides."project.classifiers".inline_arrays = false
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+inta = ["**/*.html", "**/*.js", "**/*.css"]
