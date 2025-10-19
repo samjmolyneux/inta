@@ -99,7 +99,7 @@ select = ["ALL"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-inta = ["**/*.css", "**/*.html", "**/*.js"]
+inta = ["**/*.css", "**/*.html", "**/*.js", "py.typed"]
 
 [tool.tomlsort]
 all = true
