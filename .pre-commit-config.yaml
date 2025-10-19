@@ -1,0 +1,100 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-illegal-windows-names
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: end-of-file-fixer
+        exclude_types:
+          - svg
+      - id: name-tests-test
+        args: ["--pytest-test-first"]
+      # - id: no-commit-to-branch
+      #   args: ["--branch", "main", "--branch", "master"]
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: check-merge-conflict
+      - id: check-json
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.1
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.29.0
+    hooks:
+      - id: yamllint
+  - repo: https://github.com/ComPWA/taplo-pre-commit
+    rev: v0.9.3
+    hooks:
+      - id: taplo-lint
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.18.1
+    hooks:
+      - id: markdownlint-cli2
+  - repo: https://github.com/thlorenz/doctoc
+    rev: v2.2.0
+    hooks:
+      - id: doctoc
+        files: ^README\.md$
+        args: [--github, --maxlevel=3]
+  - repo: https://github.com/eslint/eslint
+    rev: v9.38.0
+    hooks:
+      - id: eslint
+        types: [file]
+        args: ["--max-warnings=0"]
+        additional_dependencies:
+          - eslint@9.38.0
+          - "@eslint/js@9.38.0"
+          - "@html-eslint/eslint-plugin@0.47.0"
+          - "@html-eslint/parser@0.47.0"
+          - eslint-config-prettier@10.1.8
+          - eslint-plugin-import@2.32.0
+          - eslint-plugin-jsdoc@61.1.4
+          - eslint-plugin-n@17.23.1
+          - eslint-plugin-perfectionist@4.15.1
+          - eslint-plugin-promise@7.2.1
+          - eslint-plugin-regexp@2.10.0
+          - eslint-plugin-unicorn@61.0.2
+          - eslint-plugin-sonarjs@3.0.5
+  - repo: https://github.com/thibaudcolas/pre-commit-stylelint
+    rev: v16.25.0
+    hooks:
+      - id: stylelint
+        files: \.css$
+        args: [--allow-empty-input]
+        additional_dependencies:
+          - stylelint@16.25.0
+          - stylelint-config-standard@39.0.1
+          - stylelint-config-clean-order@7.0.0
+          - stylelint-no-unsupported-browser-features@8.0.5
+          - stylelint-plugin-defensive-css@1.0.4
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.6.2
+    hooks:
+      - id: prettier
+        args: [--check]
+        files: \.(css|html|js|json|md|ya?ml)$
+        additional_dependencies:
+          - prettier@3.6.2
+  - repo: https://github.com/pappasam/toml-sort
+    rev: v0.24.2
+    hooks:
+      - id: toml-sort
+      - args: [--check]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+      - id: mypy
