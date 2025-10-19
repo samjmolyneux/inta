@@ -20,14 +20,14 @@ export default defineConfig([
     files: JS_FILES,
     extends: [
       js.configs.all,
-      sonarjs.configs.recommended, // No all
-      pluginImport.flatConfigs.recommended, // No all
-      pluginPromise.configs["flat/recommended"], // No all
+      sonarjs.configs.recommended,
+      pluginImport.flatConfigs.recommended,
+      pluginPromise.configs["flat/recommended"],
       pluginN.configs["flat/all"],
       pluginUnicorn.configs.all,
       pluginRegexp.configs["flat/all"],
-      pluginPerfectionist.configs["recommended-natural"], // No all
-      jsdoc.configs["flat/recommended-error"], // No all, but recommended-error seems to be the same thing
+      pluginPerfectionist.configs["recommended-natural"],
+      jsdoc.configs["flat/recommended-error"],
     ],
     rules: {
       "perfectionist/sort-objects": "off",
@@ -36,7 +36,6 @@ export default defineConfig([
   },
 
   {
-    // files: ["**/*.html", "**/*.js"], // TODO: figure out why this one won't work
     files: ["**/*.html"],
     plugins: { html },
     extends: ["html/recommended"],
