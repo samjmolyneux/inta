@@ -7,7 +7,6 @@ authors = [
     {name = "Sam Molyneux"}
 ]
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
