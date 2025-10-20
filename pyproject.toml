@@ -24,6 +24,7 @@ classifiers = [
 dependencies = [
 ]
 description = "Interactive Plots for ML"
+dynamic = ["version"]
 keywords = [
     "browser",
     "data science",
@@ -44,8 +45,6 @@ license-files = ["LICEN[CS]E*"]
 name = "inta"
 readme = "README.md"
 requires-python = ">=3.11"
-# TODO: Need to make version dynamic properly
-version = "0.0.1a0"
 
 [project.optional-dependencies]
 dev = [
