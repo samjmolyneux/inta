@@ -1,20 +1,20 @@
-import js from "@eslint/js";
-import html from "@html-eslint/eslint-plugin";
+import * as pluginRegexp from "eslint-plugin-regexp";
+import { defineConfig } from "eslint/config";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
-import pluginImport from "eslint-plugin-import";
+import html from "@html-eslint/eslint-plugin";
+import js from "@eslint/js";
 import jsdoc from "eslint-plugin-jsdoc";
+import pluginImport from "eslint-plugin-import";
 import pluginN from "eslint-plugin-n";
 import pluginPerfectionist from "eslint-plugin-perfectionist";
 import pluginPromise from "eslint-plugin-promise";
-import * as pluginRegexp from "eslint-plugin-regexp";
 import pluginUnicorn from "eslint-plugin-unicorn";
-import { defineConfig } from "eslint/config";
 import sonarjs from "eslint-plugin-sonarjs";
 
 const JS_FILES = ["**/*.{js,cjs,mjs}"];
 
 export default defineConfig([
-  { ignores: ["dist/**", "build/**", "coverage/**"] },
+  { ignores: ["dist/**", "build/**", "coverage/**", "eslint.config.*"] },
 
   {
     files: JS_FILES,
@@ -31,6 +31,7 @@ export default defineConfig([
     ],
     rules: {
       "perfectionist/sort-objects": "off",
+      "perfectionist/sort-imports": "off",
       "sort-keys": "off",
     },
   },

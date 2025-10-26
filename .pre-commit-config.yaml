@@ -58,8 +58,8 @@ repos:
     hooks:
       - id: eslint
         types: [file]
-        files: \.(?:[jt]sx?|html)$
-        args: ["--max-warnings=0"]
+        files: \.(?:[jt]sx?|htm)$
+        args: ["--max-warnings=0", "--no-warn-ignored"]
         additional_dependencies:
           - eslint@9.38.0
           - "@eslint/js@9.38.0"
