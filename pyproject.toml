@@ -22,6 +22,10 @@ classifiers = [
     "Natural Language :: English"
 ]
 dependencies = [
+    "joblib",
+    "numpy",
+    "plotly",
+    "scikit-learn"
 ]
 description = "Interactive Plots for ML"
 dynamic = ["version"]
@@ -47,8 +51,13 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
+all_plots = [
+    "optuna",
+    "shap"
+]
 dev = [
     "mypy",
+    "pre-commit",
     "pytest",
     "ruff"
 ]
