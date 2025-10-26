@@ -41,6 +41,19 @@ export default defineConfig([
     plugins: { html },
     extends: ["html/recommended"],
     language: "html/html",
+    rules: {
+      "html/indent": ["error", 2],
+      "html/require-closing-tags": ["error", { selfClosing: "always" }],
+      "html/no-extra-spacing-attrs": [
+        "error",
+        {
+          enforceBeforeSelfClose: true,
+          disallowInAssignment: true,
+          disallowMissing: true,
+          disallowTabs: true,
+        },
+      ],
+    },
   },
 
   eslintConfigPrettier,
