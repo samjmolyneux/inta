@@ -58,6 +58,7 @@ repos:
     hooks:
       - id: eslint
         types: [file]
+        files: \.(?:[jt]sx?|html)$
         args: ["--max-warnings=0"]
         additional_dependencies:
           - eslint@9.38.0
@@ -97,7 +98,7 @@ repos:
     rev: v0.24.2
     hooks:
       - id: toml-sort
-      - args: [--check]
+        args: [--check]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.18.2
     hooks:
