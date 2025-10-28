@@ -1,4 +1,5 @@
 import * as pluginRegexp from "eslint-plugin-regexp";
+import globals from "globals";
 import { defineConfig } from "eslint/config";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
 import html from "@html-eslint/eslint-plugin";
@@ -18,6 +19,9 @@ export default defineConfig([
 
   {
     files: JS_FILES,
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
     extends: [
       js.configs.all,
       sonarjs.configs.recommended,
@@ -30,6 +34,9 @@ export default defineConfig([
       jsdoc.configs["flat/recommended-error"],
     ],
     rules: {
+      "max-params": "off",
+      "max-lines-per-function": "off",
+      "max-statements": "off",
       "perfectionist/sort-objects": "off",
       "perfectionist/sort-imports": "off",
       "sort-keys": "off",
