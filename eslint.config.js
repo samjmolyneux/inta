@@ -40,6 +40,12 @@ export default defineConfig([
       "perfectionist/sort-objects": "off",
       "perfectionist/sort-imports": "off",
       "sort-keys": "off",
+      "one-var": [
+        "error",
+        { let: "never", const: "never", using: "never", awaitUsing: "never" },
+      ],
+      "id-length": "off",
+      "unicorn/prevent-abbreviations": "off",
     },
   },
 
