@@ -1,11 +1,14 @@
-function createBoxPlot(
+const createBoxPlot = (
   dataList,
   nameList,
   title,
   xaxisTitle,
   yaxisTitle,
-  divId
-) {
+  divId,
+  invisibleX,
+  invisibleY,
+  imageFilename
+) => {
   // Existing + MORE new colors
   const fillPalette = [
     //"rgba(0, 0, 255, 0.5)",    // Blue
@@ -53,21 +56,23 @@ function createBoxPlot(
     "navy",
   ];
 
-  let traces = [];
+  const traces = [];
 
-  for (let i = 0; i < dataList.length; i++) {
-    const fc = fillPalette[i % fillPalette.length];
-    const lc = linePalette[i % linePalette.length];
+  for (const i of dataList.indices()) {
+    const fillColour = fillPalette[i % fillPalette.length];
+    const lineColour = linePalette[i % linePalette.length];
+    const boxData = dataList[i];
+    const boxName = nameList[i];
 
     traces.push({
       type: "box",
-      y: dataList[i],
-      name: nameList[i],
-      fillcolor: fc,
-      line: { color: lc },
+      y: boxData,
+      name: boxName,
+      fillcolor: fillColour,
+      line: { color: lineColour },
       boxpoints: "all",
       marker: {
-        color: lc,
+        color: lineColour,
         line: { color: "black", width: 1 },
       },
       hoverinfo: "skip",
@@ -76,14 +81,15 @@ function createBoxPlot(
 
   traces.push({
     type: "scatter",
-    x: { invisible_x },
-    y: { invisible_y },
+    x: invisibleX,
+    y: invisibleY,
     mode: "lines",
     hoverinfo: "y",
     line: { color: "rgba(0,0,0,0)" },
     showlegend: false,
   });
 
+  const categoryRangePadding = -0.5;
   const layout = {
     title: {
       text: title,
@@ -94,7 +100,7 @@ function createBoxPlot(
     },
     showlegend: true,
     xaxis: {
-      range: [-0.5, dataList.length - 0.5],
+      range: [categoryRangePadding, dataList.length + categoryRangePadding],
       autorange: false,
       zeroline: false,
       type: "category",
@@ -125,7 +131,7 @@ function createBoxPlot(
     displayModeBar: "always",
     toImageButtonOptions: {
       format: "png",
-      filename: "{image_filename}",
+      filename: imageFilename,
       height: 720,
       width: 1480,
       scale: 3,
@@ -133,17 +139,20 @@ function createBoxPlot(
   };
 
   Plotly.newPlot(divId, traces, layout, config);
-}
+};
 
-// Call the function with Python-generated data
-const dataList = { data_by_box };
-const nameList = { box_names };
+const plotConfig = JSON.parse(
+  document.querySelector("#plot-config").textContent
+);
 
 createBoxPlot(
-  dataList,
-  nameList,
-  "{title}",
-  "{xaxis_title}",
-  "{yaxis_title}",
-  "box-plot-div"
+  plotConfig.dataList,
+  plotConfig.nameList,
+  plotConfig.title,
+  plotConfig.xaxisTitle,
+  plotConfig.yaxisTitle,
+  plotConfig.divId,
+  plotConfig.invisibleX,
+  plotConfig.invisibleY,
+  plotConfig.imageFilename
 );

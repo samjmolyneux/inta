@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <title>Plotly Box Plot</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script
+      src="https://cdn.plot.ly/plotly-3.1.0.min.js"
+      charset="utf-8"
+    ></script>
     <style>
       {% include "style.css" %}
     </style>
@@ -12,7 +15,9 @@
     <div id="box-plot-container">
       <div id="box-plot-div"></div>
     </div>
-
+    <script type="application/json" id="plot-config">
+      {{ plot_config|tojson }}
+    </script>
     <script type="module">
       {% include "script.js" %}
     </script>
