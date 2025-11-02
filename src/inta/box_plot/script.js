@@ -129,9 +129,11 @@ const createBoxPlot = (
   Plotly.newPlot(divId, traces, layout, config);
 };
 
-const plotConfig = JSON.parse(
-  document.querySelector("#plot-config").textContent,
-);
+if (!window.Plotly) {
+  document.getElementById("cdn-fail").hidden = false;
+}
+
+const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
 createBoxPlot(
   plotConfig.dataList,
