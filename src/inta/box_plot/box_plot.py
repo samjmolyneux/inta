@@ -112,7 +112,6 @@ def box_plot(
         max([max(d) for d in data_by_box]),
         1000,
     ).tolist()
-
     invisible_x = [0] * len(invisible_y)
 
     data_by_box = [np.array(box_data).tolist() for box_data in data_by_box]
@@ -126,5 +125,20 @@ def box_plot(
         trim_blocks=True,
     )
     template = environment.get_template("index.html")
+    config = {
+        "plot_config": {
+            "dataList": data_by_box,
+            "nameList": box_names,
+            "title": title,
+            "xAxisTitle": xaxis_title,
+            "yAxisTitle": yaxis_title,
+            "invisibleX": invisible_x,
+            "invisibleY": invisible_y,
+            "imageFilename": image_filename,
+        },
+    }
 
-    print(f"HTML file saved at: {savepath}")
+    content = template.render(config)
+    with open(savepath, mode="w", encoding="utf-8") as f:
+        f.write(content)
+        print(f"HTML file saved at: {savepath}")
