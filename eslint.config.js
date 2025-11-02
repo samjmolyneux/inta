@@ -1,7 +1,6 @@
 import * as pluginRegexp from "eslint-plugin-regexp";
 import globals from "globals";
 import { defineConfig } from "eslint/config";
-import eslintConfigPrettier from "eslint-config-prettier/flat";
 import html from "@html-eslint/eslint-plugin";
 import js from "@eslint/js";
 import jsdoc from "eslint-plugin-jsdoc";
@@ -11,6 +10,7 @@ import pluginPerfectionist from "eslint-plugin-perfectionist";
 import pluginPromise from "eslint-plugin-promise";
 import pluginUnicorn from "eslint-plugin-unicorn";
 import sonarjs from "eslint-plugin-sonarjs";
+import stylistic from "@stylistic/eslint-plugin";
 
 const JS_FILES = ["**/*.{js,cjs,mjs}"];
 
@@ -21,9 +21,12 @@ export default defineConfig([
     files: JS_FILES,
     languageOptions: {
       globals: { ...globals.browser },
+      ecmaVersion: "latest",
+      sourceType: "module",
     },
     extends: [
       js.configs.all,
+      stylistic.configs.recommended,
       sonarjs.configs.recommended,
       pluginImport.flatConfigs.recommended,
       pluginPromise.configs["flat/recommended"],
@@ -37,9 +40,15 @@ export default defineConfig([
       "max-params": "off",
       "max-lines-per-function": "off",
       "max-statements": "off",
+      "no-inline-comments": "off",
+      "sort-keys": "off",
       "perfectionist/sort-objects": "off",
       "perfectionist/sort-imports": "off",
-      "sort-keys": "off",
+      // Set code max length to 100, because default is 80, but prettier allows longer than it's limit.
+      "@stylistic/max-len": ["warn", { code: 100, comments: 100 }],
+      "@stylistic/quotes": ["error", "double"],
+      "@stylistic/semi": ["error", "always"],
+      "@stylistic/spaced-comment": ["warn", "always"],
       "one-var": [
         "error",
         { let: "never", const: "never", using: "never", awaitUsing: "never" },
@@ -68,6 +77,4 @@ export default defineConfig([
       ],
     },
   },
-
-  eslintConfigPrettier,
 ]);
