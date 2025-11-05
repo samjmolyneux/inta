@@ -1,0 +1,40 @@
+{% extends "bases/base.html" %}
+
+{% block main %}
+  <div id="histogram-container">
+    <div id="histogram"></div>
+  </div>
+
+  <div id="bin-container">
+    <label for="binSelect">Select the bin size:</label>
+    <select id="binSelect">
+      <option value="0.0001">0.0001</option>
+      <option value="0.0005">0.0005</option>
+      <option value="0.001">0.001</option>
+      <option value="0.002">0.002</option>
+      <option value="0.005" selected>0.005</option>
+      <option value="0.01">0.01</option>
+      <option value="0.02">0.02</option>
+    </select>
+  </div>
+
+  <div id="table-container">
+    <div id="stats-table"></div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- prettier-ignore-start -->
+  <script type="module">
+    {% include "histogram/script.js" %}
+  </script>
+  <!-- prettier-ignore-end -->
+{% endblock %}
+
+{% block styles %}
+  <!-- prettier-ignore-start -->
+  <style>
+    {% include "histogram/style.css" %}
+  </style>
+  <!-- prettier-ignore-end -->
+{% endblock %}
