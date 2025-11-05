@@ -1,0 +1,56 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  margin-top: 2em;
+}
+
+#histogram-container {
+  /* display: flex; */
+  /* flex-direction: column; */
+  /* align-items: center; */
+  /* justify-content: center; */
+  position: relative;
+  width: 80%;
+  margin: 0 auto;
+  aspect-ratio: 16/9;
+}
+
+#histogram {
+  /* width: 80%; */
+  /* //max-width: 50rem; */
+  /* margin-bottom: 0.5em;  Adds spacing before dropdown */
+  /* aspect-ratio: 16/9; */
+  width: 100%;
+  height: 100%;
+}
+
+#tips-container {
+  position: absolute; /* Overlay on top of #histogram */
+  bottom: 10%; /* Adjust spacing from the top */
+  right: 1%; /* Adjust spacing from the right */
+  background-color: #f8f8f8;
+  border-radius: 0.5rem;
+  font-size: 0.7rem;
+}
+
+#tips-container ul {
+  list-style-type: none;
+  padding: 0.4rem;
+  margin: 0;
+}
+
+#tips-container li {
+  padding: 0.3rem 0;
+}
+#binSelect {
+  font-size: 0.8rem;
+  /* padding: 0.3em; */
+}
+#bin-container {
+  width: 80%; /* Same width as the histogram */
+  /* max-width: 50rem; */
+  text-align: left; /* Aligns text to the left */
+  margin-left: auto; /* Centers container but keeps text left-aligned */
+  margin-right: auto;
+}
