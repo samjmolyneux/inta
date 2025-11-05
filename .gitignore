@@ -1,3 +1,6 @@
+# Ignore top level htmls
+/*.html
+
 # Logs
 logs
 *.log
