@@ -37,7 +37,7 @@ def box_plot(
     }
 
     render_template(
-        plot_type="box_plot",
+        template="box_plot/plot.html",
         config=config,
         savepath=savepath,
     )

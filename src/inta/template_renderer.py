@@ -8,9 +8,7 @@ def finalizer(v):
     return v
 
 
-def render_template(plot_type, config, savepath):
-    config["plot_type"] = plot_type
-
+def render_template(template, config, savepath):
     environment = Environment(
         loader=PackageLoader("inta", ""),
         autoescape=True,
@@ -19,8 +17,8 @@ def render_template(plot_type, config, savepath):
         lstrip_blocks=True,
         trim_blocks=True,
     )
-    template = environment.get_template(f"{plot_type}/plot.html")
+    loaded_template = environment.get_template(template)
 
-    content = template.render(config)
+    content = loaded_template.render(config)
     with open(savepath, mode="w", encoding="utf-8") as f:
         f.write(content)
