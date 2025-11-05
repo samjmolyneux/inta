@@ -64,7 +64,8 @@ export default defineConfig([
     extends: ["html/recommended"],
     language: "html/html",
     rules: {
-      "html/indent": ["error", 2],
+      "html/indent": "off",
+      "html/attrs-newline": "off",
       "html/require-closing-tags": ["error", { selfClosing: "always" }],
       "html/no-extra-spacing-attrs": [
         "error",
