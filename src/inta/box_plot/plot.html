@@ -5,3 +5,19 @@
     <div id="box-plot-div"></div>
   </main>
 {% endblock %}
+
+{% block scripts %}
+  <!-- prettier-ignore-start -->
+  <script type="module">
+    {% include "box_plot/script.js" %}
+  </script>
+  <!-- prettier-ignore-end -->
+{% endblock %}
+
+{% block styles %}
+  <!-- prettier-ignore-start -->
+  <style>
+    {% include "box_plot/style.css" %}
+  </style>
+  <!-- prettier-ignore-end -->
+{% endblock %}

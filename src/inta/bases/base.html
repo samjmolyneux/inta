@@ -9,11 +9,8 @@
       crossorigin="anonymous"
       defer
     ></script>
-    <!-- prettier-ignore-start -->
-    <style>
-      {% include  plot_type ~ "/style.css" %}
-    </style>
-    <!-- prettier-ignore-end -->
+    {% block styles %}
+    {% endblock %}
   </head>
   <body>
     <noscript>
@@ -27,14 +24,14 @@
       means you are not connected to the internet or your firewall is blocking
       access.
     </div>
-    {% block main required %}{% endblock %}
+    {% block main required %}
+    {% endblock %}
     <!-- prettier-ignore-start -->
     <script type="application/json" id="plot-config">
       {{ plot_config|tojson }}
     </script>
-    <script type="module">
-      {% include plot_type ~ "/script.js" %}
-    </script>
     <!-- prettier-ignore-end -->
+    {% block scripts required %}
+    {% endblock %}
   </body>
 </html>
