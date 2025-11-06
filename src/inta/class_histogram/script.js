@@ -71,6 +71,12 @@ const createClassHistogram = (
   Plotly.newPlot("histogram", [positiveTrace, negativeTrace], layout, config);
 };
 
+/**
+ * Updates the histogram’s bin width by restyling the existing Plotly figure.
+ * @function updateBins
+ * @param {number} value - New width for the x-axis histogram bins.
+ * @returns {void}
+ */
 const updateBins = (value) => {
   Plotly.restyle("histogram", "xbins.size", [value]);
 };

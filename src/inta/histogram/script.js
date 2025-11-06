@@ -120,6 +120,12 @@ const createStatsTable = (mean, median, stdDev, minVal, maxVal) => {
   Plotly.newPlot("stats-table", [statsTable], layout, config);
 };
 
+/**
+ * Updates the histogram’s bin width by restyling the existing Plotly figure.
+ * @function updateBins
+ * @param {number} value - New width for the x-axis histogram bins.
+ * @returns {void}
+ */
 const updateBins = (value) => {
   Plotly.restyle("histogram", "xbins.size", [value]);
 };
