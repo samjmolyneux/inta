@@ -1,3 +1,15 @@
+/**
+ * Renders an overlaid Plotly histogram for two classes (positive vs. negative).
+ * @function createClassHistogram
+ * @param {number}   binSize         - Width of each histogram bin.
+ * @param {number[]} positiveScores  - Array of scores for the positive class.
+ * @param {number[]} negativeScores  - Array of scores for the negative class.
+ * @param {string}   title           - Chart title text.
+ * @param {string}   xAxisTitle      - X-axis title text.
+ * @param {string}   yAxisTitle      - Y-axis title text.
+ * @param {string}   imageFilename   - Filename used for the exported image.
+ * @returns {void}
+ */
 const createClassHistogram = (
   binSize,
   positiveScores,
