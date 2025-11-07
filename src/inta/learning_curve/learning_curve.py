@@ -1,8 +1,5 @@
 import numpy as np
-from eppi_text_classification.predict import predict_scores
-from eppi_text_classification.train import train
 from joblib import Parallel, delayed
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 
 from inta.template_renderer import render_template
@@ -10,10 +7,11 @@ from inta.template_renderer import render_template
 
 def _learning_curve_for_one_proportion(
     proportion,
-    tfidf_scores,
+    scores,
     labels,
-    model_name,
-    model_params,
+    train_fn,
+    predict_scores_fn,
+    metric,
     kf_splits,  # list( (train_idx, val_idx) ), pre-computed once
 ):
     train_auc_scores = []
@@ -26,7 +24,7 @@ def _learning_curve_for_one_proportion(
         # To guarantee that we have one of each class in the 0.1 proportion
         # We are using the test size to determine the size of the training set
         # As a result we take the test from train_test_split and use it for training
-        X_train = tfidf_scores[train_idx]
+        X_train = scores[train_idx]
         y_train = labels[train_idx]
         if proportion < 1.0:
             _, X_train, _, y_train = train_test_split(
@@ -37,15 +35,15 @@ def _learning_curve_for_one_proportion(
                 stratify=y_train,
             )
 
-        X_val = tfidf_scores[val_idx]
+        X_val = scores[val_idx]
         y_val = labels[val_idx]
 
         fold_train_sizes.append(len(y_train))
 
         # TODO: Update this to a object oriented approach
-        clf = train(model_name, model_params, X_train, y_train)
-        train_auc = roc_auc_score(y_train, predict_scores(clf, X_train))
-        val_auc = roc_auc_score(y_val, predict_scores(clf, X_val))
+        clf = train_fn(X_train, y_train)
+        train_auc = metric(y_train, predict_scores_fn(clf, X_train))
+        val_auc = metric(y_val, predict_scores_fn(clf, X_val))
 
         train_auc_scores.append(train_auc)
         val_auc_scores.append(val_auc)
@@ -57,8 +55,9 @@ def _learning_curve_for_one_proportion(
 def get_learning_curve_data(
     scores,
     labels,
-    model_name,
-    model_params,
+    train_fn,
+    predict_scores_fn,
+    metric,
     nfolds: int = 5,
     proportions=None,
     n_jobs: int = -1,  # -1 = use all CPU cores
@@ -77,12 +76,13 @@ def get_learning_curve_data(
 
     results = Parallel(n_jobs=n_jobs, backend="loky")(
         delayed(_learning_curve_for_one_proportion)(
-            prop,
-            scores,
-            labels,
-            model_name,
-            model_params,
-            kf_splits,
+            proportion=prop,
+            scores=scores,
+            labels=labels,
+            train_fn=train_fn,
+            predict_scores_fn=predict_scores_fn,
+            metric=metric,
+            kf_splits=kf_splits,
         )
         for prop in proportions
     )
@@ -97,8 +97,9 @@ def get_learning_curve_data(
 def learning_curve(
     scores,
     labels,
-    model_name,
-    model_params,
+    train_fn,
+    predict_scores_fn,
+    metric,
     savepath,
     image_filename="learning_curve",
     title="Learning Curve with Shaded AUC Bounds",
@@ -116,23 +117,24 @@ def learning_curve(
     train_sizes, _, val_curve_data = get_learning_curve_data(
         scores=scores,
         labels=labels,
-        model_name=model_name,
-        model_params=model_params,
+        train_fn=train_fn,
+        predict_scores_fn=predict_scores_fn,
+        metric=metric,
         nfolds=nfolds,
         proportions=proportions,
     )
 
-    val_curve_ys = np.mean(val_curve_data, axis=1).tolist()
-    val_lower_bound_ys = np.min(val_curve_data, axis=1).tolist()
-    val_upper_bound_ys = np.max(val_curve_data, axis=1).tolist()
+    mean_scores = np.mean(val_curve_data, axis=1).tolist()
+    min_scores = np.min(val_curve_data, axis=1).tolist()
+    max_scores = np.max(val_curve_data, axis=1).tolist()
 
     config = {
         "document_title": "Learning Curve",
         "plot_config": {
             "trainSizes": np.array(train_sizes).tolist(),  # TODO:  Why?
-            "meanScores": val_curve_ys,
-            "minScores": val_lower_bound_ys,
-            "maxScores": val_upper_bound_ys,
+            "meanScores": mean_scores,
+            "minScores": min_scores,
+            "maxScores": max_scores,
             "cvScores": np.array(val_curve_data).tolist(),  # TODO: why?
             "title": title,
             "xAxisTitle": xaxis_title,
