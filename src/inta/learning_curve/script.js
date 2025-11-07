@@ -64,10 +64,6 @@ const createLearningCurve = (
 
   // Add individual CV scores as scatter points
   for (const i of trainSizes.keys()) {
-    // const trainSizePerFold = Array.from({ length: cvScores[i].length }).fill(
-    //   trainSizes[i],
-    // );
-
     plotTraces.push({
       type: "scatter",
       mode: "markers",
@@ -120,13 +116,28 @@ const createLearningCurve = (
     },
   };
 
-  if (!window.Plotly) {
-    document.querySelector("#cdn-fail").hidden = false;
-  }
-
-  const plotConfig = JSON.parse(
-    document.querySelector("#plot-config").textContent,
-  );
-  //   Plotly.newPlot("plot", data, layout, (config = config));
   Plotly.newPlot("plot", plotTraces, layout, config);
 };
+
+if (!window.Plotly) {
+  document.querySelector("#cdn-fail").hidden = false;
+}
+
+const plotConfig = JSON.parse(
+  document.querySelector("#plot-config").textContent,
+);
+
+createLearningCurve(
+  plotConfig.trainSizes,
+  plotConfig.meanScores,
+  plotConfig.minScores,
+  plotConfig.maxScores,
+  plotConfig.cvScores,
+  plotConfig.title,
+  plotConfig.xAxisTitle,
+  plotConfig.yAxisTitle,
+  plotConfig.curveName,
+  plotConfig.fillColour,
+  plotConfig.markerColour,
+  plotConfig.imageFilename,
+);
