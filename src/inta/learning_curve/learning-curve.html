@@ -1,0 +1,23 @@
+{% extends "bases/base.html" %}
+
+{% block main %}
+  <div id="plot-container">
+    <div id="plot"></div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- prettier-ignore-start -->
+  <script type="module">
+    {% include "learning_curve/script.js" %}
+  </script>
+  <!-- prettier-ignore-end -->
+{% endblock %}
+
+{% block styles %}
+  <!-- prettier-ignore-start -->
+  <style>
+    {% include "learning_curve/style.css" %}
+  </style>
+  <!-- prettier-ignore-end -->
+{% endblock %}
