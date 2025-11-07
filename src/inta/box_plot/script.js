@@ -53,7 +53,7 @@ const createBoxPlot = (
     const boxData = dataList[i];
     const boxName = nameList[i];
 
-    traces.push({
+    const boxTrace = {
       type: "box",
       y: boxData,
       name: boxName,
@@ -64,10 +64,11 @@ const createBoxPlot = (
         line: { color: "black", width: 1 },
       },
       hoverinfo: "skip",
-    });
+    };
+    traces.push(boxTrace);
   }
 
-  traces.push({
+  const invisibleLineTrace = {
     type: "scatter",
     x: invisibleX,
     y: invisibleY,
@@ -75,7 +76,8 @@ const createBoxPlot = (
     hoverinfo: "y",
     line: { color: "rgba(0,0,0,0)" },
     showlegend: false,
-  });
+  };
+  traces.push(invisibleLineTrace);
 
   const categoryRangePadding = -0.5;
   const layout = {
@@ -130,10 +132,12 @@ const createBoxPlot = (
 };
 
 if (!window.Plotly) {
-  document.getElementById("cdn-fail").hidden = false;
+  document.querySelector("#cdn-fail").hidden = false;
 }
 
-const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
+const plotConfig = JSON.parse(
+  document.querySelector("#plot-config").textContent,
+);
 
 createBoxPlot(
   plotConfig.dataList,
