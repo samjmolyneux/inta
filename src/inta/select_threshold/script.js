@@ -128,30 +128,6 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     [1.0, "green"],
   ];
 
-  const invariantHeader = [["Invariant Metric", "Value"]];
-  const invariantRows = [
-    ["ROC AUC", rocAuc.toFixed(metricDecimalPlaces)],
-    ["PR AUC", prAuc.toFixed(metricDecimalPlaces)],
-  ];
-  const invariantCellsValues = [
-    invariantRows.map(r => r[0]),
-    invariantRows.map(r => r[1]),
-  ];
-
-  const variantHeader = [["Metric", "Value"]];
-  const variantRows = [
-    ["Accuracy", "--"],
-    ["Balanced Accuracy", "--"],
-    ["Recall", "--"],
-    ["Precision", "--"],
-    ["FPR", "--"],
-    ["F4", "--"],
-  ];
-  const variantCellsValues = [
-    variantRows.map(r => r[0]),
-    variantRows.map(r => r[1]),
-  ];
-
   // Create initial traces; we’ll fill them on update):
   const TNDistribution = {
     x: [],
@@ -240,15 +216,20 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     hoverinfo: "skip",
   };
 
+  const fixedMetricsTableHeader = ["Invariant Metric", "Value"];
+  const fixedMetricsTableCols = [
+    ["ROC AUC", "PR AUC"],
+    [rocAuc.toFixed(metricDecimalPlaces), prAuc.toFixed(metricDecimalPlaces)],
+  ];
   const fixedMetricsTable = {
     type: "table",
     header: {
-      values: invariantHeader[0],
+      values: fixedMetricsTableHeader,
       fill: { color: "lightgrey" },
       align: "center",
     },
     cells: {
-      values: invariantCellsValues,
+      values: fixedMetricsTableCols,
       fill: { color: "white" },
       align: "center",
     },
@@ -258,15 +239,20 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     },
   };
 
+  const variableMetricsTableHeader = ["Metric", "Value"];
+  const variableMetricsTableCols = [
+    ["Accuracy", "Balanced Accuracy", "Recall", "Precision", "FPR", "F4"],
+    ["--", "--", "--", "--", "--", "--"],
+  ];
   const variableMetricsTable = {
     type: "table",
     header: {
-      values: variantHeader[0],
+      values: variableMetricsTableHeader,
       fill: { color: "lightgrey" },
       align: "center",
     },
     cells: {
-      values: variantCellsValues,
+      values: variableMetricsTableCols,
       fill: { color: "white" },
       align: "center",
     },
