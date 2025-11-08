@@ -64,36 +64,39 @@ function findSplitIndex(xArr, threshold) {
 }
 
 // Compute confusion matrix [TN, FP, FN, TP], plus metrics
-function computeConfusionMatrixAndMetrics(threshold) {
-  let TP = 0,
-    TN = 0,
+const computeClassificationMetrics = threshold => {
+  let FN = 0,
     FP = 0,
-    FN = 0;
-  for (let i = 0; i < predScores.length; i++) {
-    let predLabel = predScores[i] >= threshold ? 1 : 0;
-    let actual = trueY[i];
-    if (actual === 0 && predLabel === 0) {
-      TN++;
+    TN = 0,
+    TP = 0;
+
+  const positive = 1;
+  const negative = 0;
+
+  for (const i of predScores.keys()) {
+    const predLabel = predScores[i] >= threshold ? positive : negative;
+    const actualLabel = trueY[i];
+
+    if (actualLabel === negative && predLabel === negative) {
+      TN += 1;
     }
-    if (actual === 0 && predLabel === 1) {
-      FP++;
+    if (actualLabel === negative && predLabel === positive) {
+      FP += 1;
     }
-    if (actual === 1 && predLabel === 0) {
-      FN++;
+    if (actualLabel === positive && predLabel === negative) {
+      FN += 1;
     }
-    if (actual === 1 && predLabel === 1) {
-      TP++;
+    if (actualLabel === positive && predLabel === positive) {
+      TP += 1;
     }
   }
-  let accuracy = (TP + TN) / (TP + TN + FP + FN);
-  let TPR = TP + FN > 0 ? TP / (TP + FN) : 0; // recall
-  let FPR = FP + TN > 0 ? FP / (FP + TN) : 0;
-  let precision = TP + FP > 0 ? TP / (TP + FP) : 0;
-  let balancedAccuracy = 0.5 * (TPR + (1 - FPR));
 
-  // F4 = (1 + 4^2) * precision * recall / (4^2 * precision + recall)
-  //     = 17*precision*TPR / (16*precision + TPR) (from your code)
-  let F4 = (17 * precision * TPR) / (16 * precision + TPR || 1); // avoid /0
+  const accuracy = (TP + TN) / (TP + TN + FP + FN);
+  const TPR = TP + FN > 0 ? TP / (TP + FN) : 0; // Recall
+  const FPR = FP + TN > 0 ? FP / (FP + TN) : 0;
+  const precision = TP + FP > 0 ? TP / (TP + FP) : 0;
+  const balancedAccuracy = 0.5 * (TPR + (1 - FPR));
+  const F4 = (17 * precision * TPR) / (16 * precision + TPR || 1);
 
   return {
     TN,
@@ -107,9 +110,9 @@ function computeConfusionMatrixAndMetrics(threshold) {
     balancedAccuracy,
     F4,
   };
-}
+};
 
-const createSelectThresholdPlot = (rocAuc, prAuc) => {
+const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
   // --------------------------------------------------------------------
   // 3) BUILD INITIAL FIGURE (SUBPLOTS, TRACES, LAYOUT)
   //    - We'll create a single set of traces (TN, FP, FN, TP, threshold lines, etc.)
@@ -120,7 +123,6 @@ const createSelectThresholdPlot = (rocAuc, prAuc) => {
   // Confusion Matrix Heatmap: We'll keep the same z, but we only use it for color
   // We'll place text for [FP, TN, TP, FN] dynamically. (z = [[0,1],[2,3]] per your code)
   //
-  const metricDecimalPlaces = 4;
 
   const confusionZ = [
     [0, 1],
@@ -342,10 +344,6 @@ const createSelectThresholdPlot = (rocAuc, prAuc) => {
     name: "",
   };
 
-  // const minProba = Math.min(...predScores);
-  // const maxProba = Math.max(...predScores);
-  // const rangeProba = maxProba - minProba;
-
   // The entire data array for the initial plot:
   const data = [
     // top-left negative distribution
@@ -373,14 +371,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc) => {
   //   row=2 col=1 => positive distribution   (xaxis='x3',  yaxis='y3')
   //   row=2 col=2 => gains plot              (xaxis='x4',  yaxis='y4')
   const layout = {
-    //title: {
-    //  text: "<b>Choose your threshold</b><br>",
-    //  y: 0.97,
-    //  yanchor: 'bottom'
-    //},
     margin: {
-      // l: 20,
-      // r: 20,
       b: 40,
       t: 20,
     },
@@ -554,32 +545,63 @@ const splitPositiveTraceByClassification = (threshold, idxP) => {
 };
 
 // TODO: come up with better name for double distribution trace and then add it to this func name
-const pdfPlotCmLabelVisibility = threshold => {
+const pdfPlotCmAnnotationVisibility = threshold => {
   if (threshold > minProba + 0.96 * rangeProba) {
     return {
-      TNLabelVisible: true,
-      FNLabelVisible: true,
-      FPLabelVisible: false,
-      TPLabelVisible: false,
+      distributionTNAnnotationVisible: true,
+      distributionFNAnnotationVisible: true,
+      distributionFPAnnotationVisible: false,
+      distributionTPAnnotationVisible: false,
     };
   } else if (threshold < minProba + 0.04 * rangeProba) {
     return {
-      TNLabelVisible: false,
-      FNLabelVisible: false,
-      FPLabelVisible: true,
-      TPLabelVisible: true,
+      distributionTNAnnotationVisible: false,
+      distributionFNAnnotationVisible: false,
+      distributionFPAnnotationVisible: true,
+      distributionTPAnnotationVisible: true,
     };
   }
 
   return {
-    TNLabelVisible: true,
-    FNLabelVisible: true,
-    FPLabelVisible: true,
-    TPLabelVisible: true,
+    distributionTNAnnotationVisible: true,
+    distributionFNAnnotationVisible: true,
+    distributionFPAnnotationVisible: true,
+    distributionTPAnnotationVisible: true,
   };
 };
 
-const updatePlot = threshold => {
+const computeVariantTableTraceData = (metrics, metricDecimalPlaces) => {
+  const accuracy = `${(100 * metrics.accuracy).toFixed(metricDecimalPlaces)}%`;
+  const balancedAccuracy = `${(100 * metrics.balancedAccuracy).toFixed(metricDecimalPlaces)}%`;
+  const recall = `${(100 * metrics.TPR).toFixed(metricDecimalPlaces)}%`;
+  const precision = `${(100 * metrics.precision).toFixed(metricDecimalPlaces)}%`;
+  const specificity = `${(100 * (1 - metrics.FPR)).toFixed(metricDecimalPlaces)}%`;
+  const fpr = `${(100 * metrics.FPR).toFixed(metricDecimalPlaces)}%`;
+  const f4 = `${(100 * metrics.F4).toFixed(metricDecimalPlaces)}%`;
+
+  return {
+    variantTableMetricNames: [
+      "Accuracy",
+      "Balanced Accuracy",
+      "Recall",
+      "Precision",
+      "Specificity",
+      "FPR",
+      "F4",
+    ],
+    variantTableMetrics: [
+      accuracy,
+      balancedAccuracy,
+      recall,
+      precision,
+      specificity,
+      fpr,
+      f4,
+    ],
+  };
+};
+
+const updatePlot = (threshold, metricDecimalPlaces) => {
   const idxN = findSplitIndex(xN, threshold);
   const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(
     threshold,
@@ -598,44 +620,25 @@ const updatePlot = threshold => {
   const linePosX = [threshold, threshold];
   const linePosY = [0, maxDistY * 1.1];
 
-  const cm = computeConfusionMatrixAndMetrics(threshold);
-  const matrixText = [
-    [`FP: ${cm.FP}`, `TN: ${cm.TN}`],
-    [`TP: ${cm.TP}`, `FN: ${cm.FN}`],
-  ];
+  const metrics = computeClassificationMetrics(threshold);
 
-  const { TNLabelVisible, FPLabelVisible, FNLabelVisible, TPLabelVisible } =
-    pdfPlotCmLabelVisibility(threshold);
+  const { variantTableMetricNames, variantTableMetrics } =
+    computeVariantTableTraceData(metrics, metricDecimalPlaces);
 
-  // 5) "Variant" table metrics:
-  const accuracy = (100 * cm.accuracy).toFixed(4) + "%";
-  const balancedAccuracy = (100 * cm.balancedAccuracy).toFixed(4) + "%";
-  const recall = (100 * cm.TPR).toFixed(4) + "%";
-  const precision = (100 * cm.precision).toFixed(4) + "%";
-  const specificity = (100 * (1 - cm.FPR)).toFixed(4) + "%";
-  const fpr = (100 * cm.FPR).toFixed(4) + "%";
-  const f4 = (100 * cm.F4).toFixed(4) + "%";
-
-  const newVariantValues = [
-    [
-      "Accuracy",
-      "Balanced Accuracy",
-      "Recall",
-      "Precision",
-      "Specificity",
-      "FPR",
-      "F4",
-    ],
-    [accuracy, balancedAccuracy, recall, precision, specificity, fpr, f4],
-  ];
+  const {
+    distributionTNAnnotationVisible,
+    distributionFPAnnotationVisible,
+    distributionFNAnnotationVisible,
+    distributionTPAnnotationVisible,
+  } = pdfPlotCmAnnotationVisibility(threshold);
 
   // 6) Gains plot threshold lines
   const proportionAbove =
     predScores.filter(p => p >= threshold).length / predScores.length;
   const gainsVx = [proportionAbove, proportionAbove];
-  const gainsVy = [0, cm.TPR];
+  const gainsVy = [0, metrics.TPR];
   const gainsHx = [0, proportionAbove];
-  const gainsHy = [cm.TPR, cm.TPR];
+  const gainsHy = [metrics.TPR, metrics.TPR];
 
   // 7) Send a single update to Plotly for everything that changes:
   //    We'll do an array of "restyle" updates for each trace, plus "relayout" updates for the heatmap text.
@@ -649,7 +652,7 @@ const updatePlot = threshold => {
   const newAnnotations = [
     {
       // The "FP" cell is at x='0', y='0' in the heatmap data space
-      text: `FP: ${cm.FP}`,
+      text: `FP: ${metrics.FP}`,
       x: "0",
       y: "0",
       xref: "x2", // x-axis for your heatmap
@@ -659,7 +662,7 @@ const updatePlot = threshold => {
     },
     {
       // The "TN" cell is at x='1', y='0'
-      text: `TN: ${cm.TN}`,
+      text: `TN: ${metrics.TN}`,
       x: "1",
       y: "0",
       xref: "x2",
@@ -669,7 +672,7 @@ const updatePlot = threshold => {
     },
     {
       // The "TP" cell is at x='0', y='1'
-      text: `TP: ${cm.TP}`,
+      text: `TP: ${metrics.TP}`,
       x: "0",
       y: "1",
       xref: "x2",
@@ -679,7 +682,7 @@ const updatePlot = threshold => {
     },
     {
       // The "FN" cell is at x='1', y='1'
-      text: `FN: ${cm.FN}`,
+      text: `FN: ${metrics.FN}`,
       x: "1",
       y: "1",
       xref: "x2",
@@ -694,7 +697,6 @@ const updatePlot = threshold => {
       yref: "paper",
       x: threshold,
       visible: true,
-      // font:{size:14},
       showarrow: false,
     },
     {
@@ -702,7 +704,7 @@ const updatePlot = threshold => {
       y: 0.97,
       yref: "y domain",
       x: minProba + 0.025 * rangeProba,
-      visible: TNLabelVisible,
+      visible: distributionTNAnnotationVisible,
       font: { size: 14 },
       showarrow: false,
     },
@@ -711,7 +713,7 @@ const updatePlot = threshold => {
       y: 0.97,
       yref: "y domain",
       x: minProba + 0.975 * rangeProba,
-      visible: FPLabelVisible,
+      visible: distributionFPAnnotationVisible,
       font: { size: 14 },
       showarrow: false,
     },
@@ -720,7 +722,7 @@ const updatePlot = threshold => {
       y: 0.97,
       yref: "y3 domain",
       x: minProba + 0.025 * rangeProba,
-      visible: FNLabelVisible,
+      visible: distributionFNAnnotationVisible,
       font: { size: 14 },
       showarrow: false,
     },
@@ -729,12 +731,12 @@ const updatePlot = threshold => {
       y: 0.97,
       yref: "y3 domain",
       x: minProba + 0.975 * rangeProba,
-      visible: TPLabelVisible,
+      visible: distributionTPAnnotationVisible,
       font: { size: 14 },
       showarrow: false,
     },
     {
-      text: proportionAbove.toFixed(4),
+      text: proportionAbove.toFixed(metricDecimalPlaces),
       x: proportionAbove,
       xref: "x4 domain",
       yref: "y4 domain",
@@ -747,11 +749,11 @@ const updatePlot = threshold => {
       borderpad: 3,
     },
     {
-      text: cm.TPR.toFixed(4),
+      text: metrics.TPR.toFixed(metricDecimalPlaces),
       x: -0.07,
       xref: "x4 domain",
       yref: "y4 domain",
-      y: cm.TPR.toFixed(2),
+      y: metrics.TPR.toFixed(2),
       font: { size: 12 },
       showarrow: false,
       bgcolor: "white",
@@ -760,6 +762,13 @@ const updatePlot = threshold => {
       borderpad: 3,
     },
   ];
+
+  console.log(metricDecimalPlaces);
+  console.log(
+    `metrics.TPR.toFixed(metricDecimalPlaces: 
+    ${metrics.TPR.toFixed(metricDecimalPlaces)}`,
+  );
+  console.log(`metrics.TPR: ${metrics.TPR}`);
 
   Plotly.restyle(
     "plotDiv",
@@ -779,15 +788,10 @@ const updatePlot = threshold => {
     ],
   );
 
-  // Plotly.restyle('plotDiv', {
-  //   text: [[matrixText[0], matrixText[1]]],
-  //   hoverinfo: [['text']]
-  // }, [6]);  // trace index 6 is confusionTrace
-
   Plotly.restyle(
     "plotDiv",
     {
-      "cells.values": [[newVariantValues[0], newVariantValues[1]]],
+      "cells.values": [[variantTableMetricNames, variantTableMetrics]],
     },
     [8],
   ); // trace index 8 is variantTableTrace
@@ -796,16 +800,21 @@ const updatePlot = threshold => {
     annotations: newAnnotations,
   });
 
-  document.getElementById("recallInput").value = (100 * cm.TPR).toFixed(4);
-  document.getElementById("thresholdInput").value = threshold.toFixed(4);
-  document.getElementById("thresholdSlider").value = threshold.toFixed(4);
-  document.getElementById("thresholdValue").textContent = threshold.toFixed(4);
+  document.getElementById("recallInput").value = (100 * metrics.TPR).toFixed(
+    metricDecimalPlaces,
+  );
+  document.getElementById("thresholdInput").value =
+    threshold.toFixed(metricDecimalPlaces);
+  document.getElementById("thresholdSlider").value =
+    threshold.toFixed(metricDecimalPlaces);
+  document.getElementById("thresholdValue").textContent =
+    threshold.toFixed(metricDecimalPlaces);
 };
 
 function syncThreshold(source) {
   let input = document.getElementById("thresholdInput");
 
-  updatePlot(parseFloat(input.value));
+  updatePlot(parseFloat(input.value), 4);
 }
 
 function clearAndStore(inputElement) {
@@ -823,9 +832,9 @@ if (!window.Plotly) {
   document.querySelector("#cdn-fail").hidden = false;
 }
 
-createSelectThresholdPlot(rocAuc, prAuc);
+createSelectThresholdPlot(rocAuc, prAuc, 4);
 
-updatePlot(parseFloat(document.getElementById("thresholdSlider").value));
+updatePlot(parseFloat(document.getElementById("thresholdSlider").value), 4);
 
 document
   .getElementById("thresholdInput")
@@ -846,7 +855,7 @@ document
           cumulative[i] * 100 <
           parseFloat(document.getElementById("recallInput").value)
         ) {
-          updatePlot(thresholdBoundaries[i + 1]);
+          updatePlot(thresholdBoundaries[i + 1], 4);
           break;
         }
       }
@@ -855,7 +864,7 @@ document
 
 const slider = document.getElementById("thresholdSlider");
 slider.addEventListener("input", function (event) {
-  updatePlot(parseFloat(event.target.value));
+  updatePlot(parseFloat(event.target.value), 4);
 });
 
 const thresholdInput = document.getElementById("thresholdInput");
