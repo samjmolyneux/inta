@@ -290,10 +290,9 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
 
     customdata: thresholdBoundaries,
     // TODO: try to move this over to backtick
-    hovertemplate:
-      "Proportion of Papers Examined: %{x}" +
-      "<br>Proportion of Positives Found: %{y:.4f}" +
-      "<br>Decision Threshold: %{customdata:.4f}",
+    hovertemplate: `Proportion of Papers Examined: %{x}
+      <br>Proportion of Positives Found: %{y:.4f}
+      <br>Decision Threshold: %{customdata:.4f}`,
     hoverlabel: {
       bgcolor: "white",
       bordercolor: "#20C5FF",
