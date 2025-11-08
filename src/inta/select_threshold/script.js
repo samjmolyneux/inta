@@ -113,17 +113,6 @@ const computeClassificationMetrics = threshold => {
 };
 
 const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
-  // --------------------------------------------------------------------
-  // 3) BUILD INITIAL FIGURE (SUBPLOTS, TRACES, LAYOUT)
-  //    - We'll create a single set of traces (TN, FP, FN, TP, threshold lines, etc.)
-  //    - Then we update them in 'updatePlot()' rather than making separate frames.
-  // --------------------------------------------------------------------
-
-  //
-  // Confusion Matrix Heatmap: We'll keep the same z, but we only use it for color
-  // We'll place text for [FP, TN, TP, FN] dynamically. (z = [[0,1],[2,3]] per your code)
-  //
-
   const confusionZ = [
     [0, 1],
     [2, 3],
@@ -139,9 +128,6 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     [1.0, "green"],
   ];
 
-  // Invariant metrics table (ROC AUC, PR AUC, etc.)
-  // We'll show them in a table trace. You can dynamically compute them in JS or
-  // precompute them in Python and embed them. For demonstration, let's just fix them.
   const invariantHeader = [["Invariant Metric", "Value"]];
   const invariantRows = [
     ["ROC AUC", rocAuc.toFixed(metricDecimalPlaces)],
@@ -152,8 +138,6 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     invariantRows.map(r => r[1]),
   ];
 
-  // We also need a "variant" metrics table (Accuracy, Balanced Accuracy, etc.)
-  // We'll start with placeholders; we will restyle them on each updatePlot().
   const variantHeader = [["Metric", "Value"]];
   const variantRows = [
     ["Accuracy", "--"],
@@ -168,10 +152,8 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     variantRows.map(r => r[1]),
   ];
 
-  // Create initial traces (most are placeholders; we’ll fill them on update):
-
-  // 3.1 Negative distribution splits: TN (left side) and FP (right side)
-  const traceTN = {
+  // Create initial traces; we’ll fill them on update):
+  const TNDistribution = {
     x: [],
     y: [],
     mode: "lines",
@@ -183,7 +165,8 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     yaxis: "y",
     hoverinfo: "skip",
   };
-  const traceFP = {
+
+  const FPDistribution = {
     x: [],
     y: [],
     mode: "lines",
@@ -196,8 +179,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     hoverinfo: "skip",
   };
 
-  // 3.2 Positive distribution splits: FN (left side) and TP (right side)
-  const traceFN = {
+  const FNDistribution = {
     x: [],
     y: [],
     mode: "lines",
@@ -209,7 +191,8 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     yaxis: "y3",
     hoverinfo: "skip",
   };
-  const traceTP = {
+
+  const TPDistribution = {
     x: [],
     y: [],
     mode: "lines",
@@ -223,7 +206,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
   };
 
   // 3.3 Vertical threshold lines on top-left and bottom-left distribution subplots
-  const threshLineNegative = {
+  const negDistributionThresholdLine = {
     x: [], // e.g. [threshold, threshold]
     y: [], // e.g. [0, maxDistY]
     mode: "lines",
@@ -233,7 +216,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     yaxis: "y",
     hoverinfo: "skip",
   };
-  const threshLinePositive = {
+  const posDistributionThresholdLine = {
     x: [],
     y: [],
     mode: "lines",
@@ -245,7 +228,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
   };
 
   // 3.4 Confusion matrix heatmap (top-right)
-  const confusionTrace = {
+  const confusionMatrix = {
     z: confusionZ,
     x: ["0", "1"], // predicted label
     y: ["0", "1"], // true label
@@ -257,8 +240,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     hoverinfo: "skip",
   };
 
-  // 3.5 Invariant metrics table (just one table trace). Domain set so it's in top-right quadrant
-  const invariantTableTrace = {
+  const fixedMetricsTable = {
     type: "table",
     header: {
       values: invariantHeader[0],
@@ -276,8 +258,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     },
   };
 
-  // 3.6 "Variant" metrics table (Accuracy, etc.) - also in top-right quadrant
-  const variantTableTrace = {
+  const variableMetricsTable = {
     type: "table",
     header: {
       values: variantHeader[0],
@@ -296,7 +277,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
   };
 
   // 3.7 Cumulative gains line (bottom-right)
-  const gainsLine = {
+  const gainsCurve = {
     x: xGains,
     y: yGains,
     mode: "lines",
@@ -323,7 +304,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
 
   // 3.8 Two lines to mark threshold on the gains plot
   //     We'll place them at (pAT, 0) -> (pAT, TPR) and (0, TPR) -> (pAT, TPR)
-  const gainsVLine = {
+  const gainsVerticalProportionLine = {
     x: [],
     y: [],
     mode: "lines",
@@ -333,7 +314,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     yaxis: "y4",
     name: "",
   };
-  const gainsHLine = {
+  const gainsHorizontalRecallLine = {
     x: [],
     y: [],
     mode: "lines",
@@ -346,23 +327,24 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
 
   // The entire data array for the initial plot:
   const data = [
-    // top-left negative distribution
-    traceTN,
-    traceFP,
-    threshLineNegative,
-    // bottom-left positive distribution
-    traceFN,
-    traceTP,
-    threshLinePositive,
-    // top-right confusion matrix
-    confusionTrace,
-    // top-right tables
-    invariantTableTrace,
-    variantTableTrace,
-    // bottom-right gains line + threshold lines
-    gainsLine,
-    gainsVLine,
-    gainsHLine,
+    // Top-left negative distribution
+    TNDistribution,
+    FPDistribution,
+    negDistributionThresholdLine,
+    // Bottom-left positive distribution
+    FNDistribution,
+    TPDistribution,
+    posDistributionThresholdLine,
+    // Top-right confusion matrix
+    confusionMatrix,
+    // Top-right tables
+    fixedMetricsTable,
+    variableMetricsTable,
+    // Bottom-right gains line + threshold lines
+    // TODO: Need a new name for these three.
+    gainsCurve,
+    gainsVerticalProportionLine,
+    gainsHorizontalRecallLine,
   ];
 
   // Layout with four subplots arranged:
@@ -762,13 +744,6 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
       borderpad: 3,
     },
   ];
-
-  console.log(metricDecimalPlaces);
-  console.log(
-    `metrics.TPR.toFixed(metricDecimalPlaces: 
-    ${metrics.TPR.toFixed(metricDecimalPlaces)}`,
-  );
-  console.log(`metrics.TPR: ${metrics.TPR}`);
 
   Plotly.restyle(
     "plotDiv",
