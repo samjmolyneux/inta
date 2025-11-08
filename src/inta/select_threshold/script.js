@@ -113,22 +113,7 @@ const computeClassificationMetrics = threshold => {
 };
 
 const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
-  const confusionZ = [
-    [0, 1],
-    [2, 3],
-  ];
-  const confusionColorscale = [
-    [0, "pink"],
-    [0.25, "pink"],
-    [0.25, "salmon"],
-    [0.5, "salmon"],
-    [0.5, "lightgreen"],
-    [0.75, "lightgreen"],
-    [0.75, "green"],
-    [1.0, "green"],
-  ];
-
-  // Create initial traces; we’ll fill them on update):
+  // Create initial traces; we’ll fill them on update
   const TNDistribution = {
     x: [],
     y: [],
@@ -137,7 +122,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     line: { color: "salmon" },
     name: "TN",
     legendgroup: "Negative",
-    xaxis: "x", // top-left subplot
+    xaxis: "x",
     yaxis: "y",
     hoverinfo: "skip",
   };
@@ -163,7 +148,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     line: { color: "green" },
     name: "FN",
     legendgroup: "Positive",
-    xaxis: "x3", // bottom-left subplot
+    xaxis: "x3",
     yaxis: "y3",
     hoverinfo: "skip",
   };
@@ -181,10 +166,9 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     hoverinfo: "skip",
   };
 
-  // 3.3 Vertical threshold lines on top-left and bottom-left distribution subplots
   const negDistributionThresholdLine = {
-    x: [], // e.g. [threshold, threshold]
-    y: [], // e.g. [0, maxDistY]
+    x: [],
+    y: [],
     mode: "lines",
     line: { dash: "dash", color: "#20313e" },
     showlegend: false,
@@ -192,6 +176,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     yaxis: "y",
     hoverinfo: "skip",
   };
+
   const posDistributionThresholdLine = {
     x: [],
     y: [],
@@ -203,11 +188,24 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     hoverinfo: "skip",
   };
 
-  // 3.4 Confusion matrix heatmap (top-right)
+  const confusionZ = [
+    [0, 1],
+    [2, 3],
+  ];
+  const confusionColorscale = [
+    [0, "pink"],
+    [0.25, "pink"],
+    [0.25, "salmon"],
+    [0.5, "salmon"],
+    [0.5, "lightgreen"],
+    [0.75, "lightgreen"],
+    [0.75, "green"],
+    [1.0, "green"],
+  ];
   const confusionMatrix = {
     z: confusionZ,
-    x: ["0", "1"], // predicted label
-    y: ["0", "1"], // true label
+    x: ["0", "1"], // Predicted label
+    y: ["0", "1"], // True label
     type: "heatmap",
     colorscale: confusionColorscale,
     showscale: false,
@@ -262,20 +260,16 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     },
   };
 
-  // 3.7 Cumulative gains line (bottom-right)
   const gainsCurve = {
     x: xGains,
     y: yGains,
     mode: "lines",
     name: "",
     line: { width: 3, color: "#20C5FF" },
-    // hovertemplate: 'Examined: %{x:.2f}<br>Recall: %{y:.2f}',
     showlegend: false,
     xaxis: "x4",
     yaxis: "y4",
-
     customdata: thresholdBoundaries,
-    // TODO: try to move this over to backtick
     hovertemplate: `Proportion of Papers Examined: %{x}
       <br>Proportion of Positives Found: %{y:.4f}
       <br>Decision Threshold: %{customdata:.4f}`,
