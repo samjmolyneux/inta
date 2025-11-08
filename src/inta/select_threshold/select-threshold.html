@@ -1,0 +1,66 @@
+{% extends "bases/base.html" %}
+
+{% block main %}
+  <div id="plotDiv" style="width: 95vw; height: 80vh; margin-top: 4vh;"></div>
+
+  <div
+    style="margin-top: 0em; display: flex; flex-direction: column; gap: 0.5em;"
+  >
+    <div style="font-size: 1em;">
+      Threshold: <span id="thresholdValue">0.5</span>
+    </div>
+
+    <input
+      type="range"
+      id="thresholdSlider"
+      min="{{ min_score }}"
+      max="{{ max_score }}"
+      step="0.01"
+      value="{{ middle_score }}"
+      style="width: 40%;"
+    />
+
+    <div style="display: flex; gap: 0.5em;">
+      <label for="thresholdInput" style="font-size: 0.875em;">
+        Set Threshold:
+      </label>
+      <input
+        type="number"
+        id="thresholdInput"
+        min="{{ min_score }}"
+        max="{{ max_score }}"
+        step="0.01"
+        value="{{ middle_score }}"
+        style="width: 8em; text-align: left;"
+      />
+    </div>
+
+    <div style="display: flex; gap: 0.5em;">
+      <label for="recallInput" style="font-size: 0.875em;">Set Recall:</label>
+      <input
+        type="number"
+        id="recallInput"
+        min="{0}"
+        max="{1}"
+        step="0.01"
+        style="width: 8em; text-align: left;"
+      />
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- prettier-ignore-start -->
+  <script type="module">
+    {% include "select_threshold/script.js" %}
+  </script>
+  <!-- prettier-ignore-end -->
+{% endblock %}
+
+{% block styles %}
+  <!-- prettier-ignore-start -->
+  <style>
+    {% include "select_threshold/style.css" %}
+  </style>
+  <!-- prettier-ignore-end -->
+{% endblock %}
