@@ -13,13 +13,11 @@ const { negPredScores } = plotConfig;
 const { predScores } = plotConfig;
 const { xGains } = plotConfig;
 const { yGains } = plotConfig;
+const { minScore } = plotConfig;
+const { maxScore } = plotConfig;
+const { scoreRange } = plotConfig;
 
-//TODO: find all predScores and trueY
-
-const minProba = Math.min(posPredScores[0], negPredScores[0]);
-const maxProba = Math.max(posPredScores.at(-1), negPredScores.at(-1));
-const rangeProba = maxProba - minProba;
-
+// TODO: Find all predScores
 const traceOrder = [
   "TNDistribution",
   "FPDistribution",
@@ -335,7 +333,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
       domain: [0.0, 0.45], // top-left
       anchor: "y",
       // autorange: false,
-      range: [minProba - 0.05 * rangeProba, maxProba + 0.05 * rangeProba],
+      range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
       zeroline: false,
     },
     yaxis: {
@@ -368,7 +366,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
       anchor: "y3",
       title: "Predicted Probability",
       // autorange: false,
-      range: [minProba - 0.05 * rangeProba, maxProba + 0.05 * rangeProba],
+      range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
       zeroline: false,
     },
     yaxis3: {
@@ -512,14 +510,14 @@ const splitPositiveTraceByClassification = (xP, threshold) => {
 };
 
 const distributionsAnnotationVisibility = threshold => {
-  if (threshold > minProba + 0.96 * rangeProba) {
+  if (threshold > minScore + 0.96 * scoreRange) {
     return {
       distributionTNAnnotationVisible: true,
       distributionFNAnnotationVisible: true,
       distributionFPAnnotationVisible: false,
       distributionTPAnnotationVisible: false,
     };
-  } else if (threshold < minProba + 0.04 * rangeProba) {
+  } else if (threshold < minScore + 0.04 * scoreRange) {
     return {
       distributionTNAnnotationVisible: false,
       distributionFNAnnotationVisible: false,
@@ -640,7 +638,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     text: "TN",
     y: 0.97,
     yref: "y domain",
-    x: minProba + 0.025 * rangeProba,
+    x: minScore + 0.025 * scoreRange,
     visible: distributionTNAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
@@ -649,7 +647,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     text: "FP",
     y: 0.97,
     yref: "y domain",
-    x: minProba + 0.975 * rangeProba,
+    x: minScore + 0.975 * scoreRange,
     visible: distributionFPAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
@@ -658,7 +656,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     text: "FN",
     y: 0.97,
     yref: "y3 domain",
-    x: minProba + 0.025 * rangeProba,
+    x: minScore + 0.025 * scoreRange,
     visible: distributionFNAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
@@ -667,7 +665,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     text: "TP",
     y: 0.97,
     yref: "y3 domain",
-    x: minProba + 0.975 * rangeProba,
+    x: minScore + 0.975 * scoreRange,
     visible: distributionTPAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
