@@ -10,13 +10,14 @@
       Threshold: <span id="thresholdValue">0.5</span>
     </div>
 
+    <!-- TODO: add buffer for max and min -->
     <input
       type="range"
       id="thresholdSlider"
-      min="{{ min_score }}"
-      max="{{ max_score }}"
+      min="{{ slider_min }}"
+      max="{{ slider_max }}"
       step="0.01"
-      value="{{ middle_score }}"
+      value="{{ slider_default }}"
       style="width: 40%;"
     />
 

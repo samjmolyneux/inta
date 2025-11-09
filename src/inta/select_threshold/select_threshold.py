@@ -25,11 +25,14 @@ def select_threshold_plot(
     x_P = x_P.tolist()
     y_P = y_P.tolist()
 
+    min_score = min(pred_scores)
+    max_score = max(pred_scores)
+
     config = {
         "document_title": "Select Threshold",
-        "min_score": min(pred_scores),
-        "max_score": max(pred_scores),
-        "middle_score": (min(pred_scores) + max(pred_scores)) / 2,
+        "slider_min": min_score - 0.01 * (max_score - min_score),
+        "slider_max": max_score + 0.01 * (max_score - min_score),
+        "slider_default": (max_score - min_score) / 2,
         "plot_config": {
             "xN": x_N,
             "yN": y_N,
