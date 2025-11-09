@@ -523,8 +523,7 @@ const splitPositiveTraceByClassification = (threshold, idxP) => {
   };
 };
 
-// TODO: come up with better name for double distribution trace and then add it to this func name
-const pdfPlotCmAnnotationVisibility = threshold => {
+const distributionsAnnotationVisibility = threshold => {
   if (threshold > minProba + 0.96 * rangeProba) {
     return {
       distributionTNAnnotationVisible: true,
@@ -597,7 +596,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     distributionFPAnnotationVisible,
     distributionFNAnnotationVisible,
     distributionTPAnnotationVisible,
-  } = pdfPlotCmAnnotationVisibility(threshold);
+  } = distributionsAnnotationVisibility(threshold);
 
   // 6) Gains plot threshold lines
   const proportionAbove =
@@ -607,127 +606,125 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
   const gainsHx = [0, proportionAbove];
   const gainsHy = [metrics.TPR, metrics.TPR];
 
-  // 7) Send a single update to Plotly for everything that changes:
-  //    We'll do an array of "restyle" updates for each trace, plus "relayout" updates for the heatmap text.
-  //    The order of the traces in data[]:
-  //      0: traceTN, 1: traceFP, 2: threshLineNegative,
-  //      3: traceFN, 4: traceTP, 5: threshLinePositive,
-  //      6: confusionTrace,
-  //      7: invariantTableTrace, 8: variantTableTrace,
-  //      9: gainsLine, 10: gainsVLine, 11: gainsHLine
-  //
+  const FPConfusionAnnotation = {
+    text: `FP: ${metrics.FP}`,
+    x: "0",
+    y: "0",
+    xref: "x2",
+    yref: "y2",
+    showarrow: false,
+    font: { color: "white", size: 14 },
+  };
+  const TNConfusionAnnotation = {
+    text: `TN: ${metrics.TN}`,
+    x: "1",
+    y: "0",
+    xref: "x2",
+    yref: "y2",
+    showarrow: false,
+    font: { color: "white", size: 14 },
+  };
+  const TPConfusionAnnotation = {
+    text: `TP: ${metrics.TP}`,
+    x: "0",
+    y: "1",
+    xref: "x2",
+    yref: "y2",
+    showarrow: false,
+    font: { color: "white", size: 14 },
+  };
+  const FNConfusionAnnotation = {
+    text: `FN: ${metrics.FN}`,
+    x: "1",
+    y: "1",
+    xref: "x2",
+    yref: "y2",
+    showarrow: false,
+    font: { color: "white", size: 14 },
+  };
+  const distributionThresholdLineAnnotation = {
+    text: "Predicted Negative        Predicted Positive",
+    y: 0.5,
+    yref: "paper",
+    x: threshold,
+    visible: true,
+    showarrow: false,
+  };
+  const TNDistributionAnnotation = {
+    text: "TN",
+    y: 0.97,
+    yref: "y domain",
+    x: minProba + 0.025 * rangeProba,
+    visible: distributionTNAnnotationVisible,
+    font: { size: 14 },
+    showarrow: false,
+  };
+  const FPDistributionAnnotation = {
+    text: "FP",
+    y: 0.97,
+    yref: "y domain",
+    x: minProba + 0.975 * rangeProba,
+    visible: distributionFPAnnotationVisible,
+    font: { size: 14 },
+    showarrow: false,
+  };
+  const FNDistributionAnnotation = {
+    text: "FN",
+    y: 0.97,
+    yref: "y3 domain",
+    x: minProba + 0.025 * rangeProba,
+    visible: distributionFNAnnotationVisible,
+    font: { size: 14 },
+    showarrow: false,
+  };
+  const TPDistributionAnnotation = {
+    text: "TP",
+    y: 0.97,
+    yref: "y3 domain",
+    x: minProba + 0.975 * rangeProba,
+    visible: distributionTPAnnotationVisible,
+    font: { size: 14 },
+    showarrow: false,
+  };
+  const gainsVerticalProportionLineAnnotation = {
+    text: proportionAbove.toFixed(metricDecimalPlaces),
+    x: proportionAbove,
+    xref: "x4 domain",
+    yref: "y4 domain",
+    y: -0.06,
+    font: { size: 12 },
+    showarrow: false,
+    bgcolor: "white",
+    bordercolor: "black",
+    borderwidth: 1,
+    borderpad: 3,
+  };
+  const gainsHorizontalRecallLineAnnotation = {
+    text: metrics.TPR.toFixed(metricDecimalPlaces),
+    x: -0.07,
+    xref: "x4 domain",
+    yref: "y4 domain",
+    y: metrics.TPR.toFixed(2),
+    font: { size: 12 },
+    showarrow: false,
+    bgcolor: "white",
+    bordercolor: "black",
+    borderwidth: 1,
+    borderpad: 3,
+  };
+
   const annotationUpdates = [
-    {
-      // The "FP" cell is at x='0', y='0' in the heatmap data space
-      text: `FP: ${metrics.FP}`,
-      x: "0",
-      y: "0",
-      xref: "x2", // x-axis for your heatmap
-      yref: "y2", // y-axis for your heatmap
-      showarrow: false,
-      font: { color: "white", size: 14 },
-    },
-    {
-      // The "TN" cell is at x='1', y='0'
-      text: `TN: ${metrics.TN}`,
-      x: "1",
-      y: "0",
-      xref: "x2",
-      yref: "y2",
-      showarrow: false,
-      font: { color: "white", size: 14 },
-    },
-    {
-      // The "TP" cell is at x='0', y='1'
-      text: `TP: ${metrics.TP}`,
-      x: "0",
-      y: "1",
-      xref: "x2",
-      yref: "y2",
-      showarrow: false,
-      font: { color: "white", size: 14 },
-    },
-    {
-      // The "FN" cell is at x='1', y='1'
-      text: `FN: ${metrics.FN}`,
-      x: "1",
-      y: "1",
-      xref: "x2",
-      yref: "y2",
-      showarrow: false,
-      font: { color: "white", size: 14 },
-    },
-    // Annotation of threshold line
-    {
-      text: "Predicted Negative        Predicted Positive",
-      y: 0.5,
-      yref: "paper",
-      x: threshold,
-      visible: true,
-      showarrow: false,
-    },
-    {
-      text: "TN",
-      y: 0.97,
-      yref: "y domain",
-      x: minProba + 0.025 * rangeProba,
-      visible: distributionTNAnnotationVisible,
-      font: { size: 14 },
-      showarrow: false,
-    },
-    {
-      text: "FP",
-      y: 0.97,
-      yref: "y domain",
-      x: minProba + 0.975 * rangeProba,
-      visible: distributionFPAnnotationVisible,
-      font: { size: 14 },
-      showarrow: false,
-    },
-    {
-      text: "FN",
-      y: 0.97,
-      yref: "y3 domain",
-      x: minProba + 0.025 * rangeProba,
-      visible: distributionFNAnnotationVisible,
-      font: { size: 14 },
-      showarrow: false,
-    },
-    {
-      text: "TP",
-      y: 0.97,
-      yref: "y3 domain",
-      x: minProba + 0.975 * rangeProba,
-      visible: distributionTPAnnotationVisible,
-      font: { size: 14 },
-      showarrow: false,
-    },
-    {
-      text: proportionAbove.toFixed(metricDecimalPlaces),
-      x: proportionAbove,
-      xref: "x4 domain",
-      yref: "y4 domain",
-      y: -0.06,
-      font: { size: 12 },
-      showarrow: false,
-      bgcolor: "white",
-      bordercolor: "black",
-      borderwidth: 1,
-      borderpad: 3,
-    },
-    {
-      text: metrics.TPR.toFixed(metricDecimalPlaces),
-      x: -0.07,
-      xref: "x4 domain",
-      yref: "y4 domain",
-      y: metrics.TPR.toFixed(2),
-      font: { size: 12 },
-      showarrow: false,
-      bgcolor: "white",
-      bordercolor: "black",
-      borderwidth: 1,
-      borderpad: 3,
-    },
+    FPConfusionAnnotation,
+    TNConfusionAnnotation,
+    TPConfusionAnnotation,
+    FNConfusionAnnotation,
+    distributionThresholdLineAnnotation,
+    TNDistributionAnnotation,
+    FPDistributionAnnotation,
+    FNDistributionAnnotation,
+    TPDistributionAnnotation,
+    gainsVerticalProportionLineAnnotation,
+    gainsHorizontalRecallLineAnnotation,
   ];
 
   const traceXYUpdates = [
