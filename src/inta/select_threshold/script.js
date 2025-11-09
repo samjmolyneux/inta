@@ -59,11 +59,16 @@ let thresholdBoundaries = [Infinity, ...predScores.slice()].sort(
 var maxDistY = Math.max(...yN, ...yP);
 
 const findSplitIndex = (xArr, threshold) => {
+  // idxN should be the first index where xN[idxN] >= threshold
+
+  // if (threshold > xArr.at(-1)) {
+  //   return xArr.length;
+  // }
+  // TODO: Make sure this binary search correctly finds the end one if it equals the threshold because above we only return the length if they are equal
   let lo = 0;
   let hi = xArr.length;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
-    // TODO: should this be > or >= ?
     if (xArr[mid] >= threshold) {
       hi = mid;
     } else {
@@ -343,11 +348,10 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
   data[traceToIndex.get("gainsHorizontalRecallLine")] =
     gainsHorizontalRecallLine;
 
-  // Layout with four subplots arranged:
-  //   row=1 col=1 => negative distribution   (xaxis='x',   yaxis='y')
-  //   row=1 col=2 => confusion matrix + table(xaxis='x2',  yaxis='y2')
-  //   row=2 col=1 => positive distribution   (xaxis='x3',  yaxis='y3')
-  //   row=2 col=2 => gains plot              (xaxis='x4',  yaxis='y4')
+  //  Row=1 Col=1 => negative distribution   (xaxis='x',   yaxis='y')
+  //  Row=1 Col=2 => confusion matrix + table(xaxis='x2',  yaxis='y2')
+  //  Row=2 Col=1 => positive distribution   (xaxis='x3',  yaxis='y3')
+  //  Row=2 Col=2 => gains plot              (xaxis='x4',  yaxis='y4')
   const layout = {
     margin: {
       b: 40,
@@ -474,10 +478,11 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
 };
 
 //TODO: Would these two functions be better by using references instead of copying arrays
-const splitNegativeTraceByClassification = (threshold, idxN) => {
+const splitNegativeTraceByClassification = (xN, threshold) => {
+  const idxN = findSplitIndex(xN, threshold);
+
   if (idxN > 0 && idxN < xN.length) {
-    // TODO: So idxN should be the first index where xN[idxN] >= threshold
-    // TODO: what happens in the case that xN[idxN] == threshold exactly
+    // TODO:  write in comments that idxN should be the first index where xN[idxN] >= threshold
 
     const xNDiff = xN[idxN] - xN[idxN - 1];
     const yNDiff = yN[idxN] - yN[idxN - 1];
@@ -506,7 +511,9 @@ const splitNegativeTraceByClassification = (threshold, idxN) => {
   };
 };
 
-const splitPositiveTraceByClassification = (threshold, idxP) => {
+const splitPositiveTraceByClassification = (xP, threshold) => {
+  const idxP = findSplitIndex(xP, threshold);
+
   if (idxP > 0 && idxP < xP.length) {
     const xPDiff = xP[idxP] - xP[idxP - 1];
     const yPDiff = yP[idxP] - yP[idxP - 1];
@@ -580,16 +587,14 @@ const computeVariableTableTraceData = (metrics, metricDecimalPlaces) => {
 };
 
 const updatePlot = (threshold, metricDecimalPlaces) => {
-  const idxN = findSplitIndex(xN, threshold);
   const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(
+    xN,
     threshold,
-    idxN,
   );
 
-  const idxP = findSplitIndex(xP, threshold);
   const { xFN, yFN, xTP, yTP } = splitPositiveTraceByClassification(
+    xP,
     threshold,
-    idxP,
   );
 
   // Vertical dashed lines on distributions
