@@ -8,11 +8,15 @@ const { xP } = plotConfig;
 const { yP } = plotConfig;
 const { rocAuc } = plotConfig;
 const { prAuc } = plotConfig;
+const { posPredScores } = plotConfig;
+const { negPredScores } = plotConfig;
 const { predScores } = plotConfig;
 const { trueY } = plotConfig;
 
-const minProba = Math.min(...predScores);
-const maxProba = Math.max(...predScores);
+//TODO: find all predScores and trueY
+
+const minProba = Math.min(posPredScores[0], negPredScores[0]);
+const maxProba = Math.max(posPredScores.at(-1), negPredScores.at(-1));
 const rangeProba = maxProba - minProba;
 
 const traceOrder = [
@@ -62,6 +66,7 @@ const findSplitIndex = (xArr, threshold) => {
   // idxN should be the first index where xN[idxN] >= threshold
   // or xN.length if all < threshold
   // I have double checked it works
+  // Returns the first index where threshold <= xArr[index]
   let lo = 0;
   let hi = xArr.length;
   while (lo < hi) {
@@ -76,33 +81,14 @@ const findSplitIndex = (xArr, threshold) => {
 };
 
 // Compute confusion matrix [TN, FP, FN, TP], plus metrics
-// TODO: we can make this more efficient by using the fact that they are sorted. OR we could presort them in python if they aren't already.
 const computeClassificationMetrics = threshold => {
-  let FN = 0,
-    FP = 0,
-    TN = 0,
-    TP = 0;
+  const posSplitIdx = findSplitIndex(posPredScores, threshold);
+  const negSplitIdx = findSplitIndex(negPredScores, threshold);
 
-  const positive = 1;
-  const negative = 0;
-
-  for (const i of predScores.keys()) {
-    const predLabel = predScores[i] >= threshold ? positive : negative;
-    const actualLabel = trueY[i];
-
-    if (actualLabel === negative && predLabel === negative) {
-      TN += 1;
-    }
-    if (actualLabel === negative && predLabel === positive) {
-      FP += 1;
-    }
-    if (actualLabel === positive && predLabel === negative) {
-      FN += 1;
-    }
-    if (actualLabel === positive && predLabel === positive) {
-      TP += 1;
-    }
-  }
+  const FN = posSplitIdx;
+  const TP = posPredScores.length - posSplitIdx;
+  const TN = negSplitIdx;
+  const FP = negPredScores.length - negSplitIdx;
 
   const accuracy = (TP + TN) / (TP + TN + FP + FN);
   const TPR = TP + FN > 0 ? TP / (TP + FN) : 0; // Recall
@@ -509,9 +495,11 @@ const splitNegativeTraceByClassification = (xN, threshold) => {
   };
 };
 
+//TODO: Would these two functions be better by using references instead of copying arrays
 const splitPositiveTraceByClassification = (xP, threshold) => {
   const idxP = findSplitIndex(xP, threshold);
 
+  // TODO:  write in comments that idxN should be the first index where xN[idxN] >= threshold
   if (idxP > 0 && idxP < xP.length) {
     const xPDiff = xP[idxP] - xP[idxP - 1];
     const yPDiff = yP[idxP] - yP[idxP - 1];
