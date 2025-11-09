@@ -10,23 +10,32 @@ def select_threshold_plot(
     pred_scores,
     savepath="select_threshold_plot.html",
 ):
+    #  Assumes all negatives are 0
+    #  TODO: Assert the above
+
+    order = np.argsort(pred_scores)
+    pred_scores = np.array(pred_scores)[order]
+    true_y = np.array(true_y)[order]
+
+    pos_pred_scores = pred_scores[true_y == 1]
+    neg_pred_scores = pred_scores[true_y == 0]
+
     # generate the X_N, X_P and stuff here
     x_N, y_N = _get_density_curve_data([pred_scores[true_y == 0]])
     x_P, y_P = _get_density_curve_data([pred_scores[true_y == 1]])
 
+    max_distribution_y = max(*y_N, *y_P)
+
     roc_auc = roc_auc_score(true_y, pred_scores)
     pr_auc = average_precision_score(true_y, pred_scores)
 
-    pred_scores = pred_scores.tolist()
-    true_y = true_y.tolist()
+    n = len(true_y)
+    n_pos = len(pos_pred_scores)
+    gain_curve_xs = np.arange(n + 1) / n
+    gain_curve_ys = np.concatenate([[0], np.cumsum(true_y[::-1])]) / n_pos
 
-    x_N = x_N.tolist()
-    y_N = y_N.tolist()
-    x_P = x_P.tolist()
-    y_P = y_P.tolist()
-
-    min_score = min(pred_scores)
-    max_score = max(pred_scores)
+    min_score = pred_scores[0]
+    max_score = pred_scores[-1]
 
     config = {
         "document_title": "Select Threshold",
@@ -34,14 +43,21 @@ def select_threshold_plot(
         "slider_max": max_score + 0.01 * (max_score - min_score),
         "slider_default": (max_score - min_score) / 2,
         "plot_config": {
-            "xN": x_N,
-            "yN": y_N,
-            "xP": x_P,
-            "yP": y_P,
+            "xN": x_N.tolist(),
+            "yN": y_N.tolist(),
+            "xP": x_P.tolist(),
+            "yP": y_P.tolist(),
             "rocAuc": roc_auc,
             "prAuc": pr_auc,
-            "predScores": pred_scores,
-            "trueY": true_y,
+            "predScores": pred_scores.tolist(),
+            "posPredScores": pos_pred_scores.tolist(),
+            "negPredScores": neg_pred_scores.tolist(),
+            "xGains": gain_curve_xs.tolist(),
+            "yGains": gain_curve_ys.tolist(),
+            "minScore": min_score,
+            "maxScore": max_score,
+            "scoreRange": max_score - min_score,
+            "maxDistributionY": max_distribution_y,
         },
     }
 
