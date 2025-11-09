@@ -58,21 +58,20 @@ let thresholdBoundaries = [Infinity, ...predScores.slice()].sort(
 // We'll keep track of the maximum Y for the negative and positive distribution plots:
 var maxDistY = Math.max(...yN, ...yP);
 
-// --------------------------------------------------------------------
-// 2) FUNCTIONS TO COMPUTE SPLITS, METRICS, CONFUSION MATRIX, ETC.
-// --------------------------------------------------------------------
-
-// Quick function to find the index to split a sorted array x[] at value 'threshold'
-function findSplitIndex(xArr, threshold) {
-  // We want the first index where xArr[index] >= threshold
-  // (similar to Python's np.searchsorted)
-  for (let i = 0; i < xArr.length; i++) {
-    if (xArr[i] >= threshold) {
-      return i;
+const findSplitIndex = (xArr, threshold) => {
+  let lo = 0;
+  let hi = xArr.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    // TODO: should this be > or >= ?
+    if (xArr[mid] >= threshold) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
     }
   }
-  return xArr.length; // if threshold is bigger than all
-}
+  return lo; // == xArr.length if all < threshold
+};
 
 // Compute confusion matrix [TN, FP, FN, TP], plus metrics
 const computeClassificationMetrics = threshold => {
@@ -473,14 +472,13 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
   // Make the initial plot
   Plotly.newPlot("plotDiv", data, layout, config);
 };
-// --------------------------------------------------------------------
-// 4) THE KEY FUNCTION: updatePlot(threshold)
-//    This slices the distributions, updates confusion matrix, tables, etc.
-// --------------------------------------------------------------------
-// TODO: up to here
 
+//TODO: Would these two functions be better by using references instead of copying arrays
 const splitNegativeTraceByClassification = (threshold, idxN) => {
-  if (idxN > 0) {
+  if (idxN > 0 && idxN < xN.length) {
+    // TODO: So idxN should be the first index where xN[idxN] >= threshold
+    // TODO: what happens in the case that xN[idxN] == threshold exactly
+
     const xNDiff = xN[idxN] - xN[idxN - 1];
     const yNDiff = yN[idxN] - yN[idxN - 1];
     const yInterpolated = yN[idxN] + ((threshold - xN[idxN]) * yNDiff) / xNDiff;
@@ -491,18 +489,25 @@ const splitNegativeTraceByClassification = (threshold, idxN) => {
       xFP: [threshold, ...xN.slice(idxN)],
       yFP: [yInterpolated, ...yN.slice(idxN)],
     };
+  } else if (idxN === xN.length) {
+    return {
+      xTN: [...xN],
+      yTN: [...yN],
+      xFP: [],
+      yFP: [],
+    };
   }
 
   return {
     xTN: [],
     yTN: [],
-    xFP: xN.slice(),
-    yFP: yN.slice(),
+    xFP: [...xN],
+    yFP: [...yN],
   };
 };
 
 const splitPositiveTraceByClassification = (threshold, idxP) => {
-  if (idxP > 0) {
+  if (idxP > 0 && idxP < xP.length) {
     const xPDiff = xP[idxP] - xP[idxP - 1];
     const yPDiff = yP[idxP] - yP[idxP - 1];
     const yInterpolated = yP[idxP] + ((threshold - xP[idxP]) * yPDiff) / xPDiff;
@@ -513,13 +518,20 @@ const splitPositiveTraceByClassification = (threshold, idxP) => {
       xTP: [threshold, ...xP.slice(idxP)],
       yTP: [yInterpolated, ...yP.slice(idxP)],
     };
+  } else if (idxP === xP.length) {
+    return {
+      xFN: [...xP],
+      yFN: [...yP],
+      xTP: [],
+      yTP: [],
+    };
   }
 
   return {
     xFN: [],
     yFN: [],
-    xTP: xP.slice(),
-    yTP: yP.slice(),
+    xTP: [...xP],
+    yTP: [...yP],
   };
 };
 
