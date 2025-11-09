@@ -60,25 +60,23 @@ var maxDistY = Math.max(...yN, ...yP);
 
 const findSplitIndex = (xArr, threshold) => {
   // idxN should be the first index where xN[idxN] >= threshold
-
-  // if (threshold > xArr.at(-1)) {
-  //   return xArr.length;
-  // }
-  // TODO: Make sure this binary search correctly finds the end one if it equals the threshold because above we only return the length if they are equal
+  // or xN.length if all < threshold
+  // I have double checked it works
   let lo = 0;
   let hi = xArr.length;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
-    if (xArr[mid] >= threshold) {
-      hi = mid;
-    } else {
+    if (xArr[mid] < threshold) {
       lo = mid + 1;
+    } else {
+      hi = mid;
     }
   }
   return lo; // == xArr.length if all < threshold
 };
 
 // Compute confusion matrix [TN, FP, FN, TP], plus metrics
+// TODO: we can make this more efficient by using the fact that they are sorted. OR we could presort them in python if they aren't already.
 const computeClassificationMetrics = threshold => {
   let FN = 0,
     FP = 0,
