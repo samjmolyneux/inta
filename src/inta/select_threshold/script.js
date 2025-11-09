@@ -2,13 +2,6 @@ const plotConfig = JSON.parse(
   document.querySelector("#plot-config").textContent,
 );
 
-// --------------------------------------------------------------------
-// 1) DUMMY DATA (Replace these arrays with your actual data)
-// --------------------------------------------------------------------
-
-// For simplicity, let's assume we already computed xN,yN and xP,yP for
-// two kernel density estimates: negative (N) and positive (P).
-
 const { xN } = plotConfig;
 const { yN } = plotConfig;
 const { xP } = plotConfig;
@@ -21,6 +14,24 @@ const { trueY } = plotConfig;
 const minProba = Math.min(...predScores);
 const maxProba = Math.max(...predScores);
 const rangeProba = maxProba - minProba;
+
+const traceOrder = [
+  "TNDistribution",
+  "FPDistribution",
+  "negDistributionThresholdLine",
+  "FNDistribution",
+  "TPDistribution",
+  "PosDistributionThresholdLine",
+  "ConfusionMatrix",
+  "fixedMetricsTable",
+  "variableMetricsTable",
+  "gainsCurve",
+  "gainsVerticalProportionLine",
+  "gainsHorizontalRecallLine",
+];
+const traceToIndex = new Map(
+  traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
+);
 
 // For the "cumulative gains" subplot, we can define an array of x=proportionExamined
 // and y=cumulativeRecall, sorted by predScores descending:
@@ -281,8 +292,6 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     legendgroup: "",
   };
 
-  // 3.8 Two lines to mark threshold on the gains plot
-  //     We'll place them at (pAT, 0) -> (pAT, TPR) and (0, TPR) -> (pAT, TPR)
   const gainsVerticalProportionLine = {
     x: [],
     y: [],
@@ -293,6 +302,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     yaxis: "y4",
     name: "",
   };
+
   const gainsHorizontalRecallLine = {
     x: [],
     y: [],
@@ -304,27 +314,35 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     name: "",
   };
 
-  // The entire data array for the initial plot:
-  const data = [
-    // Top-left negative distribution
-    TNDistribution,
-    FPDistribution,
-    negDistributionThresholdLine,
-    // Bottom-left positive distribution
-    FNDistribution,
-    TPDistribution,
-    posDistributionThresholdLine,
-    // Top-right confusion matrix
-    confusionMatrix,
-    // Top-right tables
-    fixedMetricsTable,
-    variableMetricsTable,
-    // Bottom-right gains line + threshold lines
-    // TODO: Need a new name for these three.
-    gainsCurve,
-    gainsVerticalProportionLine,
-    gainsHorizontalRecallLine,
-  ];
+  const data = [];
+
+  // TODO: There must be some sort of map way to not have to write this all out
+
+  // Top-left negative distribution
+  data[traceToIndex.get("TNDistribution")] = TNDistribution;
+  data[traceToIndex.get("FPDistribution")] = FPDistribution;
+  data[traceToIndex.get("negDistributionThresholdLine")] =
+    negDistributionThresholdLine;
+
+  // Bottom-left positive distribution
+  data[traceToIndex.get("FNDistribution")] = FNDistribution;
+  data[traceToIndex.get("TPDistribution")] = TPDistribution;
+  data[traceToIndex.get("PosDistributionThresholdLine")] =
+    posDistributionThresholdLine;
+
+  // Top-right confusion matrix
+  data[traceToIndex.get("ConfusionMatrix")] = confusionMatrix;
+
+  // Top-right tables
+  data[traceToIndex.get("fixedMetricsTable")] = fixedMetricsTable;
+  data[traceToIndex.get("variableMetricsTable")] = variableMetricsTable;
+
+  // Bottom-right gains line + threshold lines
+  data[traceToIndex.get("gainsCurve")] = gainsCurve;
+  data[traceToIndex.get("gainsVerticalProportionLine")] =
+    gainsVerticalProportionLine;
+  data[traceToIndex.get("gainsHorizontalRecallLine")] =
+    gainsHorizontalRecallLine;
 
   // Layout with four subplots arranged:
   //   row=1 col=1 => negative distribution   (xaxis='x',   yaxis='y')
@@ -541,7 +559,7 @@ const computeVariantTableTraceData = (metrics, metricDecimalPlaces) => {
   const f4 = `${(100 * metrics.F4).toFixed(metricDecimalPlaces)}%`;
 
   return {
-    variantTableMetricNames: [
+    variableTableMetricNames: [
       "Accuracy",
       "Balanced Accuracy",
       "Recall",
@@ -550,7 +568,7 @@ const computeVariantTableTraceData = (metrics, metricDecimalPlaces) => {
       "FPR",
       "F4",
     ],
-    variantTableMetrics: [
+    variableTableMetrics: [
       accuracy,
       balancedAccuracy,
       recall,
@@ -583,7 +601,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
 
   const metrics = computeClassificationMetrics(threshold);
 
-  const { variantTableMetricNames, variantTableMetrics } =
+  const { variableTableMetricNames, variableTableMetrics } =
     computeVariantTableTraceData(metrics, metricDecimalPlaces);
 
   const {
@@ -610,7 +628,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
   //      7: invariantTableTrace, 8: variantTableTrace,
   //      9: gainsLine, 10: gainsVLine, 11: gainsHLine
   //
-  const newAnnotations = [
+  const annotationUpdates = [
     {
       // The "FP" cell is at x='0', y='0' in the heatmap data space
       text: `FP: ${metrics.FP}`,
@@ -724,34 +742,38 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     },
   ];
 
+  const traceUpdates = [
+    { name: "TNDistribution", x: xTN, y: yTN },
+    { name: "FPDistribution", x: xFP, y: yFP },
+    { name: "negDistributionThresholdLine", x: lineNegX, y: lineNegY },
+    { name: "FNDistribution", x: xFN, y: yFN },
+    { name: "TPDistribution", x: xTP, y: yTP },
+    { name: "PosDistributionThresholdLine", x: linePosX, y: linePosY },
+    { name: "gainsVerticalProportionLine", x: gainsVx, y: gainsVy },
+    { name: "gainsHorizontalRecallLine", x: gainsHx, y: gainsHy },
+  ];
+
+  const indices = [];
+  const xArr = [];
+  const yArr = [];
+  for (const update of traceUpdates) {
+    indices.push(traceToIndex.get(update.name));
+    xArr.push(update.x);
+    yArr.push(update.y);
+  }
+
+  Plotly.restyle("plotDiv", { x: xArr, y: yArr }, indices);
+
   Plotly.restyle(
     "plotDiv",
     {
-      x: [xTN, xFP, lineNegX, xFN, xTP, linePosX, gainsVx, gainsHx],
-      y: [yTN, yFP, lineNegY, yFN, yTP, linePosY, gainsVy, gainsHy],
+      "cells.values": [[variableTableMetricNames, variableTableMetrics]],
     },
-    [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5 /* xTN, xFP, etc. go to these trace indices */,
-      10,
-      11, // for x and y of gains lines, but we handle them in the same .restyle call
-    ],
+    [traceToIndex.get("variableMetricsTable")],
   );
 
-  Plotly.restyle(
-    "plotDiv",
-    {
-      "cells.values": [[variantTableMetricNames, variantTableMetrics]],
-    },
-    [8],
-  ); // trace index 8 is variantTableTrace
-
   Plotly.relayout("plotDiv", {
-    annotations: newAnnotations,
+    annotations: annotationUpdates,
   });
 
   document.getElementById("recallInput").value = (100 * metrics.TPR).toFixed(
