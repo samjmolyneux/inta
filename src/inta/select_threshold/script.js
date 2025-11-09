@@ -549,34 +549,22 @@ const pdfPlotCmAnnotationVisibility = threshold => {
   };
 };
 
-const computeVariantTableTraceData = (metrics, metricDecimalPlaces) => {
-  const accuracy = `${(100 * metrics.accuracy).toFixed(metricDecimalPlaces)}%`;
-  const balancedAccuracy = `${(100 * metrics.balancedAccuracy).toFixed(metricDecimalPlaces)}%`;
-  const recall = `${(100 * metrics.TPR).toFixed(metricDecimalPlaces)}%`;
-  const precision = `${(100 * metrics.precision).toFixed(metricDecimalPlaces)}%`;
-  const specificity = `${(100 * (1 - metrics.FPR)).toFixed(metricDecimalPlaces)}%`;
-  const fpr = `${(100 * metrics.FPR).toFixed(metricDecimalPlaces)}%`;
-  const f4 = `${(100 * metrics.F4).toFixed(metricDecimalPlaces)}%`;
+const computeVariableTableTraceData = (metrics, metricDecimalPlaces) => {
+  const fracToPercent = v => `${(100 * v).toFixed(metricDecimalPlaces)}%`;
+
+  const tableRows = [
+    { mName: "Accuracy", val: metrics.accuracy },
+    { mName: "Balanced Accuracy", val: metrics.balancedAccuracy },
+    { mName: "Recall", val: metrics.TPR },
+    { mName: "Precision", val: metrics.precision },
+    { mName: "Specificity", val: 1 - metrics.FPR },
+    { mName: "FPR", val: metrics.FPR },
+    { mName: "F4", val: metrics.F4 },
+  ];
 
   return {
-    variableTableMetricNames: [
-      "Accuracy",
-      "Balanced Accuracy",
-      "Recall",
-      "Precision",
-      "Specificity",
-      "FPR",
-      "F4",
-    ],
-    variableTableMetrics: [
-      accuracy,
-      balancedAccuracy,
-      recall,
-      precision,
-      specificity,
-      fpr,
-      f4,
-    ],
+    variableTableMetricNames: tableRows.map(({ mName }) => mName),
+    variableTableMetrics: tableRows.map(({ val }) => fracToPercent(val)),
   };
 };
 
@@ -602,7 +590,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
   const metrics = computeClassificationMetrics(threshold);
 
   const { variableTableMetricNames, variableTableMetrics } =
-    computeVariantTableTraceData(metrics, metricDecimalPlaces);
+    computeVariableTableTraceData(metrics, metricDecimalPlaces);
 
   const {
     distributionTNAnnotationVisible,
@@ -742,7 +730,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     },
   ];
 
-  const traceUpdates = [
+  const traceXYUpdates = [
     { name: "TNDistribution", x: xTN, y: yTN },
     { name: "FPDistribution", x: xFP, y: yFP },
     { name: "negDistributionThresholdLine", x: lineNegX, y: lineNegY },
@@ -756,7 +744,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
   const indices = [];
   const xArr = [];
   const yArr = [];
-  for (const update of traceUpdates) {
+  for (const update of traceXYUpdates) {
     indices.push(traceToIndex.get(update.name));
     xArr.push(update.x);
     yArr.push(update.y);
