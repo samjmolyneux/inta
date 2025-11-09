@@ -11,7 +11,8 @@ const { prAuc } = plotConfig;
 const { posPredScores } = plotConfig;
 const { negPredScores } = plotConfig;
 const { predScores } = plotConfig;
-const { trueY } = plotConfig;
+const { xGains } = plotConfig;
+const { yGains } = plotConfig;
 
 //TODO: find all predScores and trueY
 
@@ -36,24 +37,6 @@ const traceOrder = [
 const traceToIndex = new Map(
   traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
 );
-
-// For the "cumulative gains" subplot, we can define an array of x=proportionExamined
-// and y=cumulativeRecall, sorted by predScores descending:
-var sortedScoresIndices = predScores
-  .map((value, index) => [value, index])
-  .sort((a, b) => b[0] - a[0])
-  .map(pair => pair[1]);
-
-var sortedTrueY = sortedScoresIndices.map(idx => trueY[idx]);
-var nPos = sortedTrueY.reduce((acc, v) => acc + v, 0); // total # of positives
-var cumulative = [0];
-var sumPos = 0;
-for (var i = 0; i < sortedTrueY.length; i++) {
-  sumPos += sortedTrueY[i];
-  cumulative.push(sumPos / nPos);
-}
-var xGains = [...Array(trueY.length + 1).keys()].map(i => i / trueY.length);
-var yGains = cumulative; // same length as xGains
 
 let thresholdBoundaries = [Infinity, ...predScores.slice()].sort(
   (a, b) => b - a,
@@ -814,9 +797,9 @@ document
   .addEventListener("keydown", function (event) {
     if (event.key === "Enter") {
       // Only triggers when Enter is pressed in the input box
-      for (let i = cumulative.length - 2; i >= 0; i--) {
+      for (let i = yGains.length - 2; i >= 0; i--) {
         if (
-          cumulative[i] * 100 <
+          yGains[i] * 100 <
           parseFloat(document.getElementById("recallInput").value)
         ) {
           updatePlot(thresholdBoundaries[i + 1], 4);
