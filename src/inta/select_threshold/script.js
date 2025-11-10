@@ -16,6 +16,13 @@ const { yGains } = plotConfig;
 const { minScore } = plotConfig;
 const { maxScore } = plotConfig;
 const { scoreRange } = plotConfig;
+const { maxDistributionY } = plotConfig;
+const metricsDP = 4;
+
+const recallInput = document.querySelector("#recallInput");
+const thresholdInput = document.querySelector("#thresholdInput");
+const thresholdSlider = document.querySelector("#thresholdSlider");
+const thresholdDisplay = document.querySelector("#thresholdValue");
 
 // TODO: Find all predScores
 const traceOrder = [
@@ -36,12 +43,10 @@ const traceToIndex = new Map(
   traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
 );
 
-let thresholdBoundaries = [Infinity, ...predScores.slice()].sort(
+// TODO: can I get rid of this?
+const thresholdBoundaries = [Infinity, ...predScores.slice()].sort(
   (a, b) => b - a,
 );
-
-// We'll keep track of the maximum Y for the negative and positive distribution plots:
-var maxDistY = Math.max(...yN, ...yP);
 
 const findSplitIndex = (xArr, threshold) => {
   // idxN should be the first index where xN[idxN] >= threshold
@@ -92,7 +97,7 @@ const computeClassificationMetrics = threshold => {
   };
 };
 
-const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
+const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
   // Create initial traces; we’ll fill them on update
   const TNDistribution = {
     x: [],
@@ -197,7 +202,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
   const fixedMetricsTableHeader = ["Invariant Metric", "Value"];
   const fixedMetricsTableCols = [
     ["ROC AUC", "PR AUC"],
-    [rocAuc.toFixed(metricDecimalPlaces), prAuc.toFixed(metricDecimalPlaces)],
+    [rocAuc.toFixed(dp), prAuc.toFixed(dp)],
   ];
   const fixedMetricsTable = {
     type: "table",
@@ -249,7 +254,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
     showlegend: false,
     xaxis: "x4",
     yaxis: "y4",
-    customdata: thresholdBoundaries,
+    customdata: thresholdBoundaries, //TODO: Why is this needed again?
     hovertemplate: `Proportion of Papers Examined: %{x}
       <br>Proportion of Positives Found: %{y:.4f}
       <br>Decision Threshold: %{customdata:.4f}`,
@@ -340,7 +345,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
       domain: [0.55, 1.0], // top-left
       anchor: "x",
       title: "Actual Negatives",
-      range: [0, maxDistY * 1.1],
+      range: [0, maxDistributionY * 1.1],
       // zeroline: false,
     },
     xaxis2: {
@@ -373,7 +378,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, metricDecimalPlaces) => {
       domain: [0.0, 0.45],
       anchor: "x3",
       title: "Actual Positives",
-      range: [0, maxDistY * 1.1],
+      range: [0, maxDistributionY * 1.1],
     },
     xaxis4: {
       domain: [0.55, 1.0], // bottom-right
@@ -509,6 +514,13 @@ const splitPositiveTraceByClassification = (xP, threshold) => {
   };
 };
 
+const updateInputElements = (threshold, metrics, dp) => {
+  recallInput.value = (100 * metrics.TPR).toFixed(dp);
+  thresholdInput.value = threshold.toFixed(dp);
+  thresholdSlider.value = threshold.toFixed(dp);
+  thresholdDisplay.textContent = threshold.toFixed(dp);
+};
+
 const distributionsAnnotationVisibility = threshold => {
   if (threshold > minScore + 0.96 * scoreRange) {
     return {
@@ -534,8 +546,8 @@ const distributionsAnnotationVisibility = threshold => {
   };
 };
 
-const computeVariableTableTraceData = (metrics, metricDecimalPlaces) => {
-  const fracToPercent = v => `${(100 * v).toFixed(metricDecimalPlaces)}%`;
+const computeVariableTableTraceData = (metrics, dp) => {
+  const fracToPercent = v => `${(100 * v).toFixed(dp)}%`;
 
   const tableRows = [
     { mName: "Accuracy", val: metrics.accuracy },
@@ -553,7 +565,7 @@ const computeVariableTableTraceData = (metrics, metricDecimalPlaces) => {
   };
 };
 
-const updatePlot = (threshold, metricDecimalPlaces) => {
+const updatePlot = (threshold, dp) => {
   const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(
     xN,
     threshold,
@@ -566,14 +578,14 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
 
   // Vertical dashed lines on distributions
   const lineNegX = [threshold, threshold];
-  const lineNegY = [0, maxDistY * 1.1];
+  const lineNegY = [0, maxDistributionY * 1.1];
   const linePosX = [threshold, threshold];
-  const linePosY = [0, maxDistY * 1.1];
+  const linePosY = [0, maxDistributionY * 1.1];
 
   const metrics = computeClassificationMetrics(threshold);
 
   const { variableTableMetricNames, variableTableMetrics } =
-    computeVariableTableTraceData(metrics, metricDecimalPlaces);
+    computeVariableTableTraceData(metrics, dp);
 
   const {
     distributionTNAnnotationVisible,
@@ -671,7 +683,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     showarrow: false,
   };
   const gainsVerticalProportionLineAnnotation = {
-    text: proportionAbove.toFixed(metricDecimalPlaces),
+    text: proportionAbove.toFixed(dp),
     x: proportionAbove,
     xref: "x4 domain",
     yref: "y4 domain",
@@ -684,7 +696,7 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     borderpad: 3,
   };
   const gainsHorizontalRecallLineAnnotation = {
-    text: metrics.TPR.toFixed(metricDecimalPlaces),
+    text: metrics.TPR.toFixed(dp),
     x: -0.07,
     xref: "x4 domain",
     yref: "y4 domain",
@@ -745,33 +757,25 @@ const updatePlot = (threshold, metricDecimalPlaces) => {
     annotations: annotationUpdates,
   });
 
-  document.getElementById("recallInput").value = (100 * metrics.TPR).toFixed(
-    metricDecimalPlaces,
-  );
-  document.getElementById("thresholdInput").value =
-    threshold.toFixed(metricDecimalPlaces);
-  document.getElementById("thresholdSlider").value =
-    threshold.toFixed(metricDecimalPlaces);
-  document.getElementById("thresholdValue").textContent =
-    threshold.toFixed(metricDecimalPlaces);
+  updateInputElements(threshold, metrics, dp);
 };
 
-function syncThreshold(source) {
-  let input = document.getElementById("thresholdInput");
+// Which of the functions below do I actually need?
+const syncThreshold = () => {
+  updatePlot(Number.parseFloat(thresholdInput.value), metricsDP);
+};
 
-  updatePlot(parseFloat(input.value), 4);
-}
-
-function clearAndStore(inputElement) {
+const clearAndStore = inputElement => {
   inputElement.dataset.originalValue = inputElement.value;
   inputElement.value = "";
-}
+};
 
-function restoreIfEmpty(inputElement) {
+//TODO: is it possible that this is being called too much?
+const restoreIfEmpty = inputElement => {
   if (inputElement.value === "") {
     inputElement.value = inputElement.dataset.originalValue;
   }
-}
+};
 
 if (!window.Plotly) {
   document.querySelector("#cdn-fail").hidden = false;
@@ -779,51 +783,43 @@ if (!window.Plotly) {
 
 createSelectThresholdPlot(rocAuc, prAuc, 4);
 
-updatePlot(parseFloat(document.getElementById("thresholdSlider").value), 4);
+updatePlot(Number.parseFloat(thresholdSlider.value), 4);
 
-document
-  .getElementById("thresholdInput")
-  .addEventListener("keydown", function (event) {
-    if (event.key === "Enter") {
-      // Only triggers when Enter is pressed in the input box
-      syncThreshold("input");
-    }
-  });
+thresholdInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    syncThreshold();
+  }
+});
 
-document
-  .getElementById("recallInput")
-  .addEventListener("keydown", function (event) {
-    if (event.key === "Enter") {
-      // Only triggers when Enter is pressed in the input box
-      for (let i = yGains.length - 2; i >= 0; i--) {
-        if (
-          yGains[i] * 100 <
-          parseFloat(document.getElementById("recallInput").value)
-        ) {
-          updatePlot(thresholdBoundaries[i + 1], 4);
-          break;
-        }
+// Get threshold from recall: so we have recall, xGains, yGains
+// We could go from recall, to yGains. Then we have the index to get the threshold from the score
+//  I think that we
+// TODO: Loop really needs to go
+recallInput.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    for (let i = yGains.length - 2; i >= 0; i--) {
+      if (yGains[i] * 100 < Number.parseFloat(recallInput.value)) {
+        updatePlot(thresholdBoundaries[i + 1], 4);
+        break;
       }
     }
-  });
-
-const slider = document.getElementById("thresholdSlider");
-slider.addEventListener("input", function (event) {
-  updatePlot(parseFloat(event.target.value), 4);
+  }
 });
 
-const thresholdInput = document.getElementById("thresholdInput");
-thresholdInput.addEventListener("focus", function (event) {
+thresholdSlider.addEventListener("input", event => {
+  updatePlot(Number.parseFloat(event.target.value), metricsDP);
+});
+
+thresholdInput.addEventListener("focus", event => {
   clearAndStore(event.target);
 });
-thresholdInput.addEventListener("blur", function (event) {
+thresholdInput.addEventListener("blur", event => {
   restoreIfEmpty(event.target);
 });
 
-const recallInput = document.getElementById("recallInput");
-recallInput.addEventListener("focus", function (event) {
+recallInput.addEventListener("focus", event => {
   clearAndStore(event.target);
 });
-recallInput.addEventListener("blur", function (event) {
+recallInput.addEventListener("blur", event => {
   restoreIfEmpty(event.target);
 });
