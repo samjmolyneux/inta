@@ -49,6 +49,7 @@ const thresholdBoundaries = [Infinity, ...predScores.slice()].sort(
 );
 
 const findSplitIndex = (xArr, threshold) => {
+  // TODO: For split index 0, can things go wrong for dists? (think about gains example)
   // idxN should be the first index where xN[idxN] >= threshold
   // or xN.length if all < threshold
   // I have double checked it works
@@ -777,31 +778,48 @@ const restoreIfEmpty = inputElement => {
   }
 };
 
-if (!window.Plotly) {
-  document.querySelector("#cdn-fail").hidden = false;
-}
-
-createSelectThresholdPlot(rocAuc, prAuc, 4);
-
-updatePlot(Number.parseFloat(thresholdSlider.value), 4);
-
 thresholdInput.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     syncThreshold();
   }
 });
 
+const clip = (val, min, max) => {
+  if (val < min) {
+    return min;
+  } else if (val > max) {
+    return max;
+  }
+  return val;
+};
+
 // Get threshold from recall: so we have recall, xGains, yGains
 // We could go from recall, to yGains. Then we have the index to get the threshold from the score
 //  I think that we
-// TODO: Loop really needs to go
+// TODO: We want the first recall that is largeer than the input recall, so use find index
 recallInput.addEventListener("keydown", event => {
+  const clippedRecallPct = clip(
+    recallInput.valueAsNumber,
+    Number(recallInput.min),
+    Number(recallInput.max),
+  );
+  const recallFrac = clippedRecallPct / 100;
+
   if (event.key === "Enter") {
-    for (let i = yGains.length - 2; i >= 0; i--) {
-      if (yGains[i] * 100 < Number.parseFloat(recallInput.value)) {
-        updatePlot(thresholdBoundaries[i + 1], 4);
-        break;
-      }
+    //TODO: Does this division introduce float errors
+    const idx = findSplitIndex(yGains, recallFrac);
+
+    // So idx is the first idx where recallInput.value <= yGains[idx]
+    // 0 means recallInput.value <= yGains for all, implies recall=0, set threshold = Infinity
+    // YGains.length-1 means the last value is the first where recall <= yGains, => threshold = predScores[0] (We get all positives)
+    // YGains.length means yGains < recall for all, (not possible)
+    // So for all non 0, threshold = predScores[len(yGains) - idx -1]
+
+    if (idx === 0) {
+      updatePlot(Infinity, metricsDP);
+    } else {
+      const threshIdx = yGains.length - idx - 1;
+      updatePlot(predScores[threshIdx], metricsDP);
     }
   }
 });
@@ -823,3 +841,11 @@ recallInput.addEventListener("focus", event => {
 recallInput.addEventListener("blur", event => {
   restoreIfEmpty(event.target);
 });
+
+if (!window.Plotly) {
+  document.querySelector("#cdn-fail").hidden = false;
+}
+
+createSelectThresholdPlot(rocAuc, prAuc, metricsDP);
+
+updatePlot(Number.parseFloat(thresholdSlider.value), metricsDP);
