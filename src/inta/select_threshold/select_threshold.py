@@ -49,7 +49,7 @@ def select_threshold_plot(
             "yP": y_P.tolist(),
             "rocAuc": roc_auc,
             "prAuc": pr_auc,
-            "predScores": pred_scores.tolist(),
+            "thresholdBoundaries": [None, *pred_scores[::-1].tolist()],
             "posPredScores": pos_pred_scores.tolist(),
             "negPredScores": neg_pred_scores.tolist(),
             "xGains": gain_curve_xs.tolist(),
