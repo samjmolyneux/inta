@@ -804,31 +804,20 @@ const clip = (val, min, max) => {
   return val;
 };
 
-// Get threshold from recall: so we have recall, xGains, yGains
-// We could go from recall, to yGains. Then we have the index to get the threshold from the score
-//  I think that we
-// TODO: We want the first recall that is largeer than the input recall, so use find index
+// TODO: Explain the logic in jsdoc. (It's on ipad notes)
 recallInput.addEventListener("keydown", event => {
   const recallFrac = recallInput.valueAsNumber / 100;
   const clippedRecallFrac = clip(recallFrac, 0, 1);
 
   if (event.key === "Enter") {
-    //TODO: Does this division introduce float errors
-    const idx = findSplitIndex(yGains, clippedRecallFrac);
-    updatePlot(thresholdBoundaries[idx], metricsDP);
+    const idx = Math.floor(
+      posPredScores.length - clippedRecallFrac * posPredScores.length,
+    );
 
-    // So idx is the first idx where recallInput.value <= yGains[idx]
-    // 0 means recallInput.value <= yGains for all, implies recall=0, set threshold = Infinity
-    // YGains.length-1 means the last value is the first where recall <= yGains, => threshold = predScores[0] (We get all positives)
-    // YGains.length means yGains < recall for all, (not possible)
-    // So for all non 0, threshold = predScores[len(yGains) - idx -1]
+    const threshold =
+      idx === posPredScores.length ? Infinity : posPredScores[idx];
 
-    //   if (idx === 0) {
-    //     updatePlot(Infinity, metricsDP);
-    //   } else {
-    //     const threshIdx = predScores.length - idx;
-    //     updatePlot(predScores[threshIdx], metricsDP);
-    //   }
+    updatePlot(threshold, metricsDP);
   }
 });
 
