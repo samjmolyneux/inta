@@ -10,21 +10,23 @@ const { rocAuc } = plotConfig;
 const { prAuc } = plotConfig;
 const { posPredScores } = plotConfig;
 const { negPredScores } = plotConfig;
-const { predScores } = plotConfig;
 const { xGains } = plotConfig;
 const { yGains } = plotConfig;
 const { minScore } = plotConfig;
 const { maxScore } = plotConfig;
 const { scoreRange } = plotConfig;
 const { maxDistributionY } = plotConfig;
+const { thresholdBoundaries } = plotConfig;
 const metricsDP = 4;
+
+// We cannot pass in Infinity via JSON, so set it here
+thresholdBoundaries[0] = Infinity;
 
 const recallInput = document.querySelector("#recallInput");
 const thresholdInput = document.querySelector("#thresholdInput");
 const thresholdSlider = document.querySelector("#thresholdSlider");
 const thresholdDisplay = document.querySelector("#thresholdValue");
 
-// TODO: Find all predScores
 const traceOrder = [
   "TNDistribution",
   "FPDistribution",
@@ -41,11 +43,6 @@ const traceOrder = [
 ];
 const traceToIndex = new Map(
   traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
-);
-
-// TODO: can I get rid of this?
-const thresholdBoundaries = [Infinity, ...predScores.slice()].sort(
-  (a, b) => b - a,
 );
 
 const findSplitIndex = (xArr, threshold) => {
@@ -255,7 +252,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
     showlegend: false,
     xaxis: "x4",
     yaxis: "y4",
-    customdata: thresholdBoundaries, //TODO: Why is this needed again?
+    customdata: thresholdBoundaries,
     hovertemplate: `Proportion of Papers Examined: %{x}
       <br>Proportion of Positives Found: %{y:.4f}
       <br>Decision Threshold: %{customdata:.4f}`,
@@ -566,6 +563,25 @@ const computeVariableTableTraceData = (metrics, dp) => {
   };
 };
 
+const computeGainsHozVerLines = (threshold, metrics) => {
+  const negIdx = findSplitIndex(negPredScores, threshold);
+  const posIdx = findSplitIndex(posPredScores, threshold);
+
+  const numNegAbove = negPredScores.length - negIdx;
+  const numPosAbove = posPredScores.length - posIdx;
+  const totalNumScores = negPredScores.length + posPredScores.length;
+
+  const proportionAbove = (numNegAbove + numPosAbove) / totalNumScores;
+
+  return {
+    gainsVx: [proportionAbove, proportionAbove],
+    gainsVy: [0, metrics.TPR],
+    gainsHx: [0, proportionAbove],
+    gainsHy: [metrics.TPR, metrics.TPR],
+    proportionAbove,
+  };
+};
+
 const updatePlot = (threshold, dp) => {
   const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(
     xN,
@@ -595,13 +611,8 @@ const updatePlot = (threshold, dp) => {
     distributionTPAnnotationVisible,
   } = distributionsAnnotationVisibility(threshold);
 
-  // 6) Gains plot threshold lines
-  const proportionAbove =
-    predScores.filter(p => p >= threshold).length / predScores.length;
-  const gainsVx = [proportionAbove, proportionAbove];
-  const gainsVy = [0, metrics.TPR];
-  const gainsHx = [0, proportionAbove];
-  const gainsHy = [metrics.TPR, metrics.TPR];
+  const { gainsVx, gainsVy, gainsHx, gainsHy, proportionAbove } =
+    computeGainsHozVerLines(threshold, metrics);
 
   const FPConfusionAnnotation = {
     text: `FP: ${metrics.FP}`,
@@ -798,16 +809,13 @@ const clip = (val, min, max) => {
 //  I think that we
 // TODO: We want the first recall that is largeer than the input recall, so use find index
 recallInput.addEventListener("keydown", event => {
-  const clippedRecallPct = clip(
-    recallInput.valueAsNumber,
-    Number(recallInput.min),
-    Number(recallInput.max),
-  );
-  const recallFrac = clippedRecallPct / 100;
+  const recallFrac = recallInput.valueAsNumber / 100;
+  const clippedRecallFrac = clip(recallFrac, 0, 1);
 
   if (event.key === "Enter") {
     //TODO: Does this division introduce float errors
-    const idx = findSplitIndex(yGains, recallFrac);
+    const idx = findSplitIndex(yGains, clippedRecallFrac);
+    updatePlot(thresholdBoundaries[idx], metricsDP);
 
     // So idx is the first idx where recallInput.value <= yGains[idx]
     // 0 means recallInput.value <= yGains for all, implies recall=0, set threshold = Infinity
@@ -815,12 +823,12 @@ recallInput.addEventListener("keydown", event => {
     // YGains.length means yGains < recall for all, (not possible)
     // So for all non 0, threshold = predScores[len(yGains) - idx -1]
 
-    if (idx === 0) {
-      updatePlot(Infinity, metricsDP);
-    } else {
-      const threshIdx = yGains.length - idx - 1;
-      updatePlot(predScores[threshIdx], metricsDP);
-    }
+    //   if (idx === 0) {
+    //     updatePlot(Infinity, metricsDP);
+    //   } else {
+    //     const threshIdx = predScores.length - idx;
+    //     updatePlot(predScores[threshIdx], metricsDP);
+    //   }
   }
 });
 
