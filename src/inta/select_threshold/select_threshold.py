@@ -29,10 +29,7 @@ def select_threshold_plot(
     roc_auc = roc_auc_score(true_y, pred_scores)
     pr_auc = average_precision_score(true_y, pred_scores)
 
-    n = len(true_y)
-    n_pos = len(pos_pred_scores)
-    gain_curve_xs = np.arange(n + 1) / n
-    gain_curve_ys = np.concatenate([[0], np.cumsum(true_y[::-1])]) / n_pos
+    gains_curve_xs, gains_curve_ys = compute_gains_xys(true_y, pos_pred_scores)
 
     min_score = pred_scores[0]
     max_score = pred_scores[-1]
@@ -49,11 +46,13 @@ def select_threshold_plot(
             "yP": y_P.tolist(),
             "rocAuc": roc_auc,
             "prAuc": pr_auc,
-            "thresholdBoundaries": [None, *pred_scores[::-1].tolist()],
+            # "thresholdBoundaries": [None, *pred_scores[::-1].tolist()],
             "posPredScores": pos_pred_scores.tolist(),
             "negPredScores": neg_pred_scores.tolist(),
-            "xGains": gain_curve_xs.tolist(),
-            "yGains": gain_curve_ys.tolist(),
+            # "xGains": gain_curve_xs.tolist(),
+            # "yGains": gain_curve_ys.tolist(),
+            "xGains": gains_curve_xs,
+            "yGains": gains_curve_ys,
             "minScore": min_score,
             "maxScore": max_score,
             "scoreRange": max_score - min_score,
@@ -100,3 +99,41 @@ def _get_density_curve_data(data, curve_type="kde"):
     y_dist_data = np.array(fig["data"][0]["y"])
 
     return x_dist_data, y_dist_data
+
+
+def compute_gains_xys(true_y, pos_pred_scores):
+    n = len(true_y)
+    n_pos = len(pos_pred_scores)
+    proportions = np.arange(n + 1) / n
+    recalls = np.concatenate([[0], np.cumsum(true_y[::-1])]) / n_pos
+    print(f"before: {len(recalls)}")
+
+    # TODO: vectorise this
+    prev = -1
+    pos_proportions = []
+    pos_recalls = []
+    for recall, prop in zip(recalls, proportions, strict=True):
+        if recall > prev:
+            pos_proportions.append(prop)
+            pos_recalls.append(recall)
+            prev = recall
+
+    if len(pos_recalls) <= 10000:
+        return np.array(pos_proportions), np.array(pos_recalls)
+
+    # Then bin accross each 0.0001 in recall.
+    # TODO: Is the histogram <= to the edge or < the edge, we want <= I thinkg, how does this affect the fact that x true if threshold<=x)
+    recall_hist, _ = np.histogram(pos_recalls, bins=10000, density=False)
+    recall_hist = np.concatenate([[0], recall_hist])
+    print(n_pos)
+    print(len(recall_hist))
+
+    cum_recall_hist = np.cumsum(recall_hist)
+    # TODO: why are they the same length?
+    print(f"total cum_recall_hist (should be 200,007): {cum_recall_hist[-1]}")
+    proportion_hist = [pos_proportions[i] for i in cum_recall_hist]
+
+    gain_curve_xs = np.array(proportion_hist)
+    gain_curve_ys = np.array(cum_recall_hist) / n_pos
+
+    return gain_curve_xs, gain_curve_ys
