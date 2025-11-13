@@ -21,6 +21,7 @@ const metricsDP = 4;
 
 // We cannot pass in Infinity via JSON, so set it here
 gainsThresholds[0] = Infinity;
+gainsThresholds[gainsThresholds.length - 1] = -Infinity;
 
 const recallInput = document.querySelector("#recallInput");
 const thresholdInput = document.querySelector("#thresholdInput");
