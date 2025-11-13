@@ -6,33 +6,31 @@ from inta.template_renderer import render_template
 
 
 def select_threshold_plot(
-    true_y,
-    pred_scores,
+    y,
+    scores,
     savepath="select_threshold_plot.html",
 ):
-    #  Assumes all negatives are 0
-    #  TODO: Assert the above
+    assert np.unique(y).tolist() == [0, 1], "y must be binary labels 0 and 1"
 
-    order = np.argsort(pred_scores)
-    pred_scores = np.array(pred_scores)[order]
-    true_y = np.array(true_y)[order]
+    order = np.argsort(scores)
+    scores = np.array(scores)[order]
+    y = np.array(y)[order]
 
-    pos_pred_scores = pred_scores[true_y == 1]
-    neg_pred_scores = pred_scores[true_y == 0]
+    pos_scores = scores[y == 1]
+    neg_scores = scores[y == 0]
 
-    # generate the X_N, X_P and stuff here
-    x_N, y_N = _get_density_curve_data([pred_scores[true_y == 0]])
-    x_P, y_P = _get_density_curve_data([pred_scores[true_y == 1]])
+    x_N, y_N = _get_density_curve_data([scores[y == 0]])
+    x_P, y_P = _get_density_curve_data([scores[y == 1]])
 
     max_distribution_y = max(*y_N, *y_P)
 
-    roc_auc = roc_auc_score(true_y, pred_scores)
-    pr_auc = average_precision_score(true_y, pred_scores)
+    roc_auc = roc_auc_score(y, scores)
+    pr_auc = average_precision_score(y, scores)
 
-    gain_curve_xs, gain_curve_ys = compute_gains_xys(true_y, pos_pred_scores)
+    gain_curve_xs, gain_curve_ys, gain_curve_thresholds = compute_gains_data(y, scores)
 
-    min_score = pred_scores[0]
-    max_score = pred_scores[-1]
+    min_score = scores[0]
+    max_score = scores[-1]
 
     config = {
         "document_title": "Select Threshold",
@@ -46,9 +44,9 @@ def select_threshold_plot(
             "yP": y_P.tolist(),
             "rocAuc": roc_auc,
             "prAuc": pr_auc,
-            # "thresholdBoundaries": [None, *pred_scores[::-1].tolist()],
-            "posPredScores": pos_pred_scores.tolist(),
-            "negPredScores": neg_pred_scores.tolist(),
+            "gainsThresholds": gain_curve_thresholds.tolist(),
+            "posPredScores": pos_scores.tolist(),
+            "negPredScores": neg_scores.tolist(),
             "xGains": gain_curve_xs.tolist(),
             "yGains": gain_curve_ys.tolist(),
             "minScore": min_score,
