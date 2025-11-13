@@ -99,41 +99,37 @@ def _get_density_curve_data(data, curve_type="kde"):
     return x_dist_data, y_dist_data
 
 
-def compute_gains_xys(true_y, pos_pred_scores):
-    n = len(true_y)
-    n_pos = len(pos_pred_scores)
+def compute_gains_data(y_asc, scores_asc):
+    y_desc = y_asc[::-1]
+    pos_scores_asc = scores_asc[y_asc == 1]
+    pos_scores_desc = pos_scores_asc[::-1]
+
+    n = len(y_asc)
     proportions = (np.arange(n) + 1) / n
-    recalls = np.cumsum(true_y[::-1]) / n_pos
 
-    # TODO: vectorise this
-    prev = 0
-    pos_proportions = []
-    pos_recalls = []
-    for recall, prop in zip(recalls, proportions, strict=True):
-        if recall > prev:
-            pos_proportions.append(prop)
-            pos_recalls.append(recall)
-            prev = recall
+    n_pos = len(pos_scores_asc)
+    recalls = np.cumsum(y_desc) / n_pos
 
+    # Proportions and recalls increase as threshold decreases, so use y_desc
+    pos_proportions = proportions[y_desc == 1]
+    pos_recalls = recalls[y_desc == 1]
+    pos_thresholds = pos_scores_desc
+
+    # Downsample to at most 10,000 points for performance
     if len(pos_recalls) > 10000:
-        # Then bin accross each 0.0001 in recall.
-        # TODO: explain the logic here.
-
         bin_edges = np.linspace(0.0001, 1, 10_000)
         insert_indices = np.searchsorted(pos_recalls, bin_edges, side="right")
 
-        pos_recalls = bin_edges  # TODO: Fix the floating point error
-        # pos_proportions = [
-        #     pos_proportions[idx - 1] for idx in insert_indices
-        # ]  # TODO: can we not just calculate this directly by division
-        pos_proportions = insert_indices / n  # TODO: double check
-
-        print("")
-        print(f"number of them {n}")
-        print(f"pos_recalls start: {pos_recalls[:10]}")  # Start should be 0.0001
-        print(f"pos_proportions start: {pos_proportions[:10]}")
+        # The code above gives us each idx we would place bin_edges into pos_recalls
+        # to keep it sorted such that the bin_edge is placed to the right of any
+        # duplicates. Therefore, each idx-1 is the last index in each bin.
+        keep_indices = insert_indices - 1
+        pos_recalls = pos_recalls[keep_indices]
+        pos_proportions = pos_proportions[keep_indices]
+        pos_thresholds = pos_thresholds[keep_indices]
 
     gain_curve_xs = np.concatenate(([0], pos_proportions))
     gain_curve_ys = np.concatenate(([0], pos_recalls))
+    gains_thresholds = np.concatenate(([None], pos_thresholds))
 
-    return gain_curve_xs, gain_curve_ys
+    return gain_curve_xs, gain_curve_ys, gains_thresholds
