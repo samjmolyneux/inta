@@ -16,11 +16,11 @@ const { minScore } = plotConfig;
 const { maxScore } = plotConfig;
 const { scoreRange } = plotConfig;
 const { maxDistributionY } = plotConfig;
-const { thresholdBoundaries } = plotConfig;
+const { gainsThresholds } = plotConfig;
 const metricsDP = 4;
 
 // We cannot pass in Infinity via JSON, so set it here
-thresholdBoundaries[0] = Infinity;
+gainsThresholds[0] = Infinity;
 
 const recallInput = document.querySelector("#recallInput");
 const thresholdInput = document.querySelector("#thresholdInput");
@@ -45,27 +45,29 @@ const traceToIndex = new Map(
   traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
 );
 
-const findSplitIndex = (xArr, threshold) => {
-  // TODO: For split index 0, can things go wrong for dists? (think about gains example)
-  // idxN should be the first index where xN[idxN] >= threshold
-  // or xN.length if all < threshold
-  // I have double checked it works
-  // Returns the first index where threshold <= xArr[index]
+/**
+ * Binary search to find smallest array index i s.t. threshold <= arr[i].
+ * If all elements in arr are < threshold, returns arr.length.
+ * @param {number[]} arr - Sorted array to search
+ * @param {number} threshold - Threshold value
+ * @returns {number} - Array index or arr.length
+ */
+const findSplitIndex = (arr, threshold) => {
   let lo = 0;
-  let hi = xArr.length;
+  let hi = arr.length;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
-    if (xArr[mid] < threshold) {
+    if (arr[mid] < threshold) {
       lo = mid + 1;
     } else {
       hi = mid;
     }
   }
-  return lo; // == xArr.length if all < threshold
+  return lo;
 };
 
 // Compute confusion matrix [TN, FP, FN, TP], plus metrics
-const computeClassificationMetrics = threshold => {
+const computeClassificationMetrics = (threshold) => {
   const posSplitIdx = findSplitIndex(posPredScores, threshold);
   const negSplitIdx = findSplitIndex(negPredScores, threshold);
 
@@ -248,11 +250,11 @@ const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
     y: yGains,
     mode: "lines",
     name: "",
-    line: { width: 3, color: "#20C5FF" },
+    line: { width: 3, color: "#20C5FF", simplify: true },
     showlegend: false,
     xaxis: "x4",
     yaxis: "y4",
-    customdata: thresholdBoundaries,
+    customdata: gainsThresholds,
     hovertemplate: `Proportion of Papers Examined: %{x}
       <br>Proportion of Positives Found: %{y:.4f}
       <br>Decision Threshold: %{customdata:.4f}`,
@@ -381,7 +383,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
     xaxis4: {
       domain: [0.55, 1.0], // bottom-right
       anchor: "y4",
-      title: "Proportion of Papers Examined",
+      title: "Proportion of Papers Examined", //TODO: why isn't this showing up?
       range: [-0.02, 1.02],
     },
     yaxis4: {
@@ -519,7 +521,7 @@ const updateInputElements = (threshold, metrics, dp) => {
   thresholdDisplay.textContent = threshold.toFixed(dp);
 };
 
-const distributionsAnnotationVisibility = threshold => {
+const distributionsAnnotationVisibility = (threshold) => {
   if (threshold > minScore + 0.96 * scoreRange) {
     return {
       distributionTNAnnotationVisible: true,
@@ -545,7 +547,7 @@ const distributionsAnnotationVisibility = threshold => {
 };
 
 const computeVariableTableTraceData = (metrics, dp) => {
-  const fracToPercent = v => `${(100 * v).toFixed(dp)}%`;
+  const fracToPercent = (v) => `${(100 * v).toFixed(dp)}%`;
 
   const tableRows = [
     { mName: "Accuracy", val: metrics.accuracy },
@@ -777,19 +779,19 @@ const syncThreshold = () => {
   updatePlot(Number.parseFloat(thresholdInput.value), metricsDP);
 };
 
-const clearAndStore = inputElement => {
+const clearAndStore = (inputElement) => {
   inputElement.dataset.originalValue = inputElement.value;
   inputElement.value = "";
 };
 
 //TODO: is it possible that this is being called too much?
-const restoreIfEmpty = inputElement => {
+const restoreIfEmpty = (inputElement) => {
   if (inputElement.value === "") {
     inputElement.value = inputElement.dataset.originalValue;
   }
 };
 
-thresholdInput.addEventListener("keydown", event => {
+thresholdInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     syncThreshold();
   }
@@ -805,7 +807,7 @@ const clip = (val, min, max) => {
 };
 
 // TODO: Explain the logic in jsdoc. (It's on ipad notes)
-recallInput.addEventListener("keydown", event => {
+recallInput.addEventListener("keydown", (event) => {
   const recallFrac = recallInput.valueAsNumber / 100;
   const clippedRecallFrac = clip(recallFrac, 0, 1);
 
@@ -821,21 +823,21 @@ recallInput.addEventListener("keydown", event => {
   }
 });
 
-thresholdSlider.addEventListener("input", event => {
+thresholdSlider.addEventListener("input", (event) => {
   updatePlot(Number.parseFloat(event.target.value), metricsDP);
 });
 
-thresholdInput.addEventListener("focus", event => {
+thresholdInput.addEventListener("focus", (event) => {
   clearAndStore(event.target);
 });
-thresholdInput.addEventListener("blur", event => {
+thresholdInput.addEventListener("blur", (event) => {
   restoreIfEmpty(event.target);
 });
 
-recallInput.addEventListener("focus", event => {
+recallInput.addEventListener("focus", (event) => {
   clearAndStore(event.target);
 });
-recallInput.addEventListener("blur", event => {
+recallInput.addEventListener("blur", (event) => {
   restoreIfEmpty(event.target);
 });
 
