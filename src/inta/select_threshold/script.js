@@ -66,15 +66,38 @@ const findSplitIndex = (arr, threshold) => {
   return lo;
 };
 
-// Compute confusion matrix [TN, FP, FN, TP], plus metrics
-const computeClassificationMetrics = (threshold) => {
-  const posSplitIdx = findSplitIndex(posPredScores, threshold);
-  const negSplitIdx = findSplitIndex(negPredScores, threshold);
+/**
+ * @typedef {object} ClassificationMetrics
+ * @property {number} TN - Number of true negatives
+ * @property {number} FP - Number of false positives
+ * @property {number} FN - Number of false negatives
+ * @property {number} TP - Number of true positives
+ * @property {number} accuracy - Overall accuracy
+ * @property {number} TPR - True positive rate (recall)
+ * @property {number} FPR - False positive rate
+ * @property {number} precision - Precision
+ * @property {number} balancedAccuracy - Balanced accuracy
+ * @property {number} F4 - F4 score
+ */
+
+/**
+ * Computes common binary classification metrics at a given decision threshold.
+ *
+ * Prediction rule: a score is predicted **positive** if `score >= threshold`,
+ * otherwise **negative**. Arrays are expected to be **sorted ascending**.
+ * @param {number} threshold - Classification decision threshold.
+ * @param {number[]} posScores - Scores for positive class (sorted ascending).
+ * @param {number[]} negScores - Scores for negative class (sorted ascending).
+ * @returns {ClassificationMetrics} - Object containing classification metrics.
+ */
+const computeClassificationMetrics = (threshold, posScores, negScores) => {
+  const posSplitIdx = findSplitIndex(posScores, threshold);
+  const negSplitIdx = findSplitIndex(negScores, threshold);
 
   const FN = posSplitIdx;
-  const TP = posPredScores.length - posSplitIdx;
+  const TP = posScores.length - posSplitIdx;
   const TN = negSplitIdx;
-  const FP = negPredScores.length - negSplitIdx;
+  const FP = negScores.length - negSplitIdx;
 
   const accuracy = (TP + TN) / (TP + TN + FP + FN);
   const TPR = TP + FN > 0 ? TP / (TP + FN) : 0; // Recall
@@ -601,7 +624,11 @@ const updatePlot = (threshold, dp) => {
   const linePosX = [threshold, threshold];
   const linePosY = [0, maxDistributionY * 1.1];
 
-  const metrics = computeClassificationMetrics(threshold);
+  const metrics = computeClassificationMetrics(
+    threshold,
+    posPredScores,
+    negPredScores,
+  );
 
   const { variableTableMetricNames, variableTableMetrics } =
     computeVariableTableTraceData(metrics, dp);
