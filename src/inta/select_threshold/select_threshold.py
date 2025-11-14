@@ -130,9 +130,4 @@ def compute_gains_data(y_asc, scores_asc):
     gain_curve_ys = np.concatenate(([0], pos_recalls, [1]))
     gains_thresholds = np.concatenate(([None], pos_thresholds, [None]))
 
-    print()
-    print(len(gain_curve_xs))
-    print(len(gain_curve_ys))
-    print(len(gains_thresholds))
-
     return gain_curve_xs, gain_curve_ys, gains_thresholds
