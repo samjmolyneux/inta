@@ -825,6 +825,14 @@ thresholdInput.addEventListener("keydown", (event) => {
   }
 });
 
+/**
+ * Clamp a number to the inclusive range `[min, max]`.
+ * @function clip
+ * @param {number} val - The value to clamp.
+ * @param {number} min - Inclusive lower bound.
+ * @param {number} max - Inclusive upper bound.
+ * @returns {number} The clamped value within `[min, max]`.
+ */
 const clip = (val, min, max) => {
   if (val < min) {
     return min;
