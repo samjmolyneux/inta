@@ -1,54 +1,7 @@
-const plotConfig = JSON.parse(
-  document.querySelector("#plot-config").textContent,
-);
-
-const { xN } = plotConfig;
-const { yN } = plotConfig;
-const { xP } = plotConfig;
-const { yP } = plotConfig;
-const { rocAuc } = plotConfig;
-const { prAuc } = plotConfig;
-const { posPredScores } = plotConfig;
-const { negPredScores } = plotConfig;
-const { xGains } = plotConfig;
-const { yGains } = plotConfig;
-const { minScore } = plotConfig;
-const { maxScore } = plotConfig;
-const { scoreRange } = plotConfig;
-const { maxDistributionY } = plotConfig;
-const { gainsThresholds } = plotConfig;
-const metricsDP = 4;
-
-// We cannot pass in Infinity via JSON, so set it here
-gainsThresholds[0] = Infinity;
-gainsThresholds[gainsThresholds.length - 1] = -Infinity;
-
-const recallInput = document.querySelector("#recallInput");
-const thresholdInput = document.querySelector("#thresholdInput");
-const thresholdSlider = document.querySelector("#thresholdSlider");
-const thresholdDisplay = document.querySelector("#thresholdValue");
-
-const traceOrder = [
-  "TNDistribution",
-  "FPDistribution",
-  "negDistributionThresholdLine",
-  "FNDistribution",
-  "TPDistribution",
-  "PosDistributionThresholdLine",
-  "ConfusionMatrix",
-  "fixedMetricsTable",
-  "variableMetricsTable",
-  "gainsCurve",
-  "gainsVerticalProportionLine",
-  "gainsHorizontalRecallLine",
-];
-const traceToIndex = new Map(
-  traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
-);
-
 /**
  * Binary search to find smallest array index i s.t. threshold <= arr[i].
  * If all elements in arr are < threshold, returns arr.length.
+ * @function findSplitIndex
  * @param {number[]} arr - Sorted array to search
  * @param {number} threshold - Threshold value
  * @returns {number} - Array index or arr.length
@@ -86,6 +39,7 @@ const findSplitIndex = (arr, threshold) => {
  *
  * Prediction rule: a score is predicted **positive** if `score >= threshold`,
  * otherwise **negative**. Arrays are expected to be **sorted ascending**.
+ * @function computeClassificationMetrics
  * @param {number} threshold - Classification decision threshold.
  * @param {number[]} posScores - Scores for positive class (sorted ascending).
  * @param {number[]} negScores - Scores for negative class (sorted ascending).
@@ -105,7 +59,13 @@ const computeClassificationMetrics = (threshold, posScores, negScores) => {
   const FPR = FP + TN > 0 ? FP / (FP + TN) : 0;
   const precision = TP + FP > 0 ? TP / (TP + FP) : 0;
   const balancedAccuracy = 0.5 * (TPR + (1 - FPR));
-  const F4 = (17 * precision * TPR) / (16 * precision + TPR || 1);
+
+  let F4;
+  if (precision === 0 && TPR === 0) {
+    F4 = 0;
+  } else {
+    F4 = (17 * precision * TPR) / (16 * precision + TPR);
+  }
 
   return {
     TN,
@@ -121,7 +81,50 @@ const computeClassificationMetrics = (threshold, posScores, negScores) => {
   };
 };
 
-const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
+// /**
+//  * Creates the initial select threshold plot with mostly empty traces. The empty traces
+//  * should be filled with `updatePlot()` after creation.
+//  * @function createSelectThresholdPlot
+//  * @param {Map<string, number>} traceToIndex - Map from trace names to plotly data array indices.
+//  * @param {number} minScore - Minimum predicted score in dataset.
+//  * @param {number} maxScore - Maximum predicted score in dataset.
+//  * @param {number} maxDistributionY - Maximum Y value for distribution traces.
+//  * @param {number[]} xGains - X values for gains curve.
+//  * @param {number[]} yGains - Y values for gains curve.
+//  * @param {number[]} gainsThresholds - Thresholds corresponding to gains curve points.
+//  * @param {number} rocAuc - ROC AUC value to display in fixed metrics table.
+//  * @param {number} prAuc - PR AUC value to display in fixed metrics table.
+//  * @param {number} dp - Number of decimal places for metric display.
+//  * @returns {void}
+//  */
+// const createSelectThresholdPlot = (
+//   traceToIndex,
+//   minScore,
+//   maxScore,
+//   maxDistributionY,
+//   xGains,
+//   yGains,
+//   gainsThresholds,
+//   rocAuc,
+//   prAuc,
+//   dp,
+// ) => {
+
+const createSelectThresholdPlot = (cfg) => {
+  const {
+    traceToIndex,
+    minScore,
+    maxScore,
+    scoreRange,
+    maxDistributionY,
+    xGains,
+    yGains,
+    gainsThresholds,
+    rocAuc,
+    prAuc,
+    dp,
+  } = cfg;
+
   // Create initial traces; we’ll fill them on update
   const TNDistribution = {
     x: [],
@@ -368,7 +371,7 @@ const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
     yaxis: {
       domain: [0.55, 1.0], // top-left
       anchor: "x",
-      title: "Actual Negatives",
+      title: { text: "Actual Negatives" },
       range: [0, maxDistributionY * 1.1],
       // zeroline: false,
     },
@@ -401,19 +404,19 @@ const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
     yaxis3: {
       domain: [0.0, 0.45],
       anchor: "x3",
-      title: "Actual Positives",
+      title: { text: "Actual Positives" },
       range: [0, maxDistributionY * 1.1],
     },
     xaxis4: {
       domain: [0.55, 1.0], // bottom-right
       anchor: "y4",
-      title: "Proportion of Papers Examined", //TODO: why isn't this showing up?
+      title: { text: "Proportion of Papers Examined" }, //TODO: why isn't this showing up?
       range: [-0.02, 1.02],
     },
     yaxis4: {
       domain: [0.0, 0.45],
       anchor: "x4",
-      title: "Recall",
+      title: { text: "Recall" },
       range: [-0.02, 1.02],
     },
     annotations: [],
@@ -467,12 +470,11 @@ const createSelectThresholdPlot = (rocAuc, prAuc, dp) => {
       scale: 3,
     },
   };
-  // Make the initial plot
+
   Plotly.newPlot("plotDiv", data, layout, config);
 };
 
-//TODO: Would these two functions be better by using references instead of copying arrays
-const splitNegativeTraceByClassification = (xN, threshold) => {
+const splitNegativeTraceByClassification = (xN, yN, threshold) => {
   const idxN = findSplitIndex(xN, threshold);
 
   if (idxN > 0 && idxN < xN.length) {
@@ -505,11 +507,9 @@ const splitNegativeTraceByClassification = (xN, threshold) => {
   };
 };
 
-//TODO: Would these two functions be better by using references instead of copying arrays
-const splitPositiveTraceByClassification = (xP, threshold) => {
+const splitPositiveTraceByClassification = (xP, yP, threshold) => {
   const idxP = findSplitIndex(xP, threshold);
 
-  // TODO:  write in comments that idxN should be the first index where xN[idxN] >= threshold
   if (idxP > 0 && idxP < xP.length) {
     const xPDiff = xP[idxP] - xP[idxP - 1];
     const yPDiff = yP[idxP] - yP[idxP - 1];
@@ -538,14 +538,14 @@ const splitPositiveTraceByClassification = (xP, threshold) => {
   };
 };
 
-const updateInputElements = (threshold, metrics, dp) => {
-  recallInput.value = (100 * metrics.TPR).toFixed(dp);
-  thresholdInput.value = threshold.toFixed(dp);
-  thresholdSlider.value = threshold.toFixed(dp);
-  thresholdDisplay.textContent = threshold.toFixed(dp);
+const updateInputElements = (ui, threshold, metrics, dp) => {
+  ui.recallInput.value = (100 * metrics.TPR).toFixed(dp);
+  ui.thresholdInput.value = threshold.toFixed(dp);
+  ui.thresholdSlider.value = threshold.toFixed(dp);
+  ui.thresholdDisplay.textContent = threshold.toFixed(dp);
 };
 
-const distributionsAnnotationVisibility = (threshold) => {
+const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
   if (threshold > minScore + 0.96 * scoreRange) {
     return {
       distributionTNAnnotationVisible: true,
@@ -589,7 +589,12 @@ const computeVariableTableTraceData = (metrics, dp) => {
   };
 };
 
-const computeGainsHozVerLines = (threshold, metrics) => {
+const computeGainsHozVerLines = (
+  threshold,
+  metrics,
+  negPredScores,
+  posPredScores,
+) => {
   const negIdx = findSplitIndex(negPredScores, threshold);
   const posIdx = findSplitIndex(posPredScores, threshold);
 
@@ -608,14 +613,30 @@ const computeGainsHozVerLines = (threshold, metrics) => {
   };
 };
 
-const updatePlot = (threshold, dp) => {
+const updatePlot = (threshold, cfg, ui) => {
+  const {
+    traceToIndex,
+    xN,
+    yN,
+    xP,
+    yP,
+    posPredScores,
+    negPredScores,
+    minScore,
+    scoreRange,
+    maxDistributionY,
+    dp,
+  } = cfg;
+
   const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(
     xN,
+    yN,
     threshold,
   );
 
   const { xFN, yFN, xTP, yTP } = splitPositiveTraceByClassification(
     xP,
+    yP,
     threshold,
   );
 
@@ -639,10 +660,10 @@ const updatePlot = (threshold, dp) => {
     distributionFPAnnotationVisible,
     distributionFNAnnotationVisible,
     distributionTPAnnotationVisible,
-  } = distributionsAnnotationVisibility(threshold);
+  } = distributionsAnnotationVisibility(threshold, minScore, scoreRange);
 
   const { gainsVx, gainsVy, gainsHx, gainsHy, proportionAbove } =
-    computeGainsHozVerLines(threshold, metrics);
+    computeGainsHozVerLines(threshold, metrics, negPredScores, posPredScores);
 
   const FPConfusionAnnotation = {
     text: `FP: ${metrics.FP}`,
@@ -799,31 +820,8 @@ const updatePlot = (threshold, dp) => {
     annotations: annotationUpdates,
   });
 
-  updateInputElements(threshold, metrics, dp);
+  updateInputElements(ui, threshold, metrics, dp);
 };
-
-// Which of the functions below do I actually need?
-const syncThreshold = () => {
-  updatePlot(Number.parseFloat(thresholdInput.value), metricsDP);
-};
-
-const clearAndStore = (inputElement) => {
-  inputElement.dataset.originalValue = inputElement.value;
-  inputElement.value = "";
-};
-
-//TODO: is it possible that this is being called too much?
-const restoreIfEmpty = (inputElement) => {
-  if (inputElement.value === "") {
-    inputElement.value = inputElement.dataset.originalValue;
-  }
-};
-
-thresholdInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    syncThreshold();
-  }
-});
 
 /**
  * Clamp a number to the inclusive range `[min, max]`.
@@ -842,45 +840,110 @@ const clip = (val, min, max) => {
   return val;
 };
 
-// TODO: Explain the logic in jsdoc. (It's on ipad notes)
-recallInput.addEventListener("keydown", (event) => {
-  const recallFrac = recallInput.valueAsNumber / 100;
-  const clippedRecallFrac = clip(recallFrac, 0, 1);
+const clearAndStore = (inputElement) => {
+  inputElement.dataset.originalValue = inputElement.value;
+  inputElement.value = "";
+};
 
-  if (event.key === "Enter") {
-    const idx = Math.floor(
-      posPredScores.length - clippedRecallFrac * posPredScores.length,
-    );
-
-    const threshold =
-      idx === posPredScores.length ? Infinity : posPredScores[idx];
-
-    updatePlot(threshold, metricsDP);
+//TODO: is it possible that this is being called too much?
+const restoreIfEmpty = (inputElement) => {
+  if (inputElement.value === "") {
+    inputElement.value = inputElement.dataset.originalValue;
   }
+};
+
+const initConfig = () => {
+  const plotConfig = JSON.parse(
+    document.querySelector("#plot-config").textContent,
+  );
+
+  // We cannot pass in Infinity via JSON, so set it here
+  plotConfig.gainsThresholds[0] = Infinity;
+  plotConfig.gainsThresholds[plotConfig.gainsThresholds.length - 1] = -Infinity;
+
+  const traceOrder = [
+    "TNDistribution",
+    "FPDistribution",
+    "negDistributionThresholdLine",
+    "FNDistribution",
+    "TPDistribution",
+    "PosDistributionThresholdLine",
+    "ConfusionMatrix",
+    "fixedMetricsTable",
+    "variableMetricsTable",
+    "gainsCurve",
+    "gainsVerticalProportionLine",
+    "gainsHorizontalRecallLine",
+  ];
+  plotConfig.traceToIndex = new Map(
+    traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
+  );
+
+  plotConfig.dp = 4;
+
+  return plotConfig;
+};
+
+const initUI = () => ({
+  recallInput: document.querySelector("#recallInput"),
+  thresholdInput: document.querySelector("#thresholdInput"),
+  thresholdSlider: document.querySelector("#thresholdSlider"),
+  thresholdDisplay: document.querySelector("#thresholdValue"),
 });
 
-thresholdSlider.addEventListener("input", (event) => {
-  updatePlot(Number.parseFloat(event.target.value), metricsDP);
-});
+const initEventListeners = (cfg, ui) => {
+  // TODO: Explain the logic in jsdoc. (It's on ipad notes)
+  ui.recallInput.addEventListener("keydown", (event) => {
+    const recallFrac = ui.recallInput.valueAsNumber / 100;
+    const clippedRecallFrac = clip(recallFrac, 0, 1);
 
-thresholdInput.addEventListener("focus", (event) => {
-  clearAndStore(event.target);
-});
-thresholdInput.addEventListener("blur", (event) => {
-  restoreIfEmpty(event.target);
-});
+    if (event.key === "Enter") {
+      const idx = Math.floor(
+        cfg.posPredScores.length - clippedRecallFrac * cfg.posPredScores.length,
+      );
 
-recallInput.addEventListener("focus", (event) => {
-  clearAndStore(event.target);
-});
-recallInput.addEventListener("blur", (event) => {
-  restoreIfEmpty(event.target);
-});
+      const threshold =
+        idx === cfg.posPredScores.length ? Infinity : cfg.posPredScores[idx];
+
+      updatePlot(threshold, cfg, ui);
+    }
+  });
+
+  ui.thresholdSlider.addEventListener("input", (event) => {
+    const threshold = Number.parseFloat(event.target.value);
+    updatePlot(threshold, cfg, ui);
+  });
+
+  ui.thresholdInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      const threshold = Number.parseFloat(event.target.value);
+      updatePlot(threshold, cfg, ui);
+    }
+  });
+
+  ui.thresholdInput.addEventListener("focus", (event) => {
+    clearAndStore(event.target);
+  });
+  ui.thresholdInput.addEventListener("blur", (event) => {
+    restoreIfEmpty(event.target);
+  });
+
+  ui.recallInput.addEventListener("focus", (event) => {
+    clearAndStore(event.target);
+  });
+  ui.recallInput.addEventListener("blur", (event) => {
+    restoreIfEmpty(event.target);
+  });
+};
 
 if (!window.Plotly) {
   document.querySelector("#cdn-fail").hidden = false;
 }
 
-createSelectThresholdPlot(rocAuc, prAuc, metricsDP);
+const cfg = initConfig();
+const ui = initUI();
+initEventListeners(cfg, ui);
+const initThreshold = Number.parseFloat(ui.thresholdSlider.value);
 
-updatePlot(Number.parseFloat(thresholdSlider.value), metricsDP);
+createSelectThresholdPlot(cfg);
+updatePlot(initThreshold, cfg, ui);
