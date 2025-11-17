@@ -1,3 +1,5 @@
+// TOODO: the plot hover over recall entry says that it must be an integer. Need to fix this.
+
 /**
  * @typedef {object} ClassificationMetrics
  * @property {number} TN - Number of true negatives
@@ -934,6 +936,30 @@ const clip = (val, min, max) => {
   }
   return val;
 };
+
+/**
+ * Creates threshold from recallPct and calls updatePlot.
+ * Calculates threshold in O(1) because posScores is sorted, therefore the recall
+ * equals the proportion of posScores above the threshold.
+ * @param {number} recallPct - desired recall as a percentage
+ * @param {SelectThresholdCfg} cfg - select-threshold configuration
+ * @param {SelectThresholdUI} ui - UI elements
+ */
+const updatePlotWRecall = (recallPct, cfg, ui) => {
+  const { posScores } = cfg;
+
+  const recallFrac = recallPct / 100;
+  const clippedRecallFrac = clip(recallFrac, 0, 1);
+
+  const idx = Math.floor(
+    posScores.length - clippedRecallFrac * posScores.length,
+  );
+
+  const threshold = idx === posScores.length ? Infinity : posScores[idx];
+
+  updatePlot(threshold, cfg, ui);
+};
+
 //TODO: move away from restore and clear methods on html element
 
 /**
@@ -1023,22 +1049,12 @@ const initUI = () => ({
  * @returns {void}
  */
 const initEventListeners = (cfg, ui) => {
-  // TODO: Explain the logic in jsdoc. (It's on ipad notes)
   // TODO: refactor this func somehow
-  const { posScores } = cfg;
 
   ui.recallInput.addEventListener("keydown", (event) => {
-    const recallFrac = ui.recallInput.valueAsNumber / 100;
-    const clippedRecallFrac = clip(recallFrac, 0, 1);
-
     if (event.key === "Enter") {
-      const idx = Math.floor(
-        posScores.length - clippedRecallFrac * posScores.length,
-      );
-
-      const threshold = idx === posScores.length ? Infinity : posScores[idx];
-
-      updatePlot(threshold, cfg, ui);
+      const recallPct = ui.recallInput.valueAsNumber;
+      updatePlotWRecall(recallPct, cfg, ui);
     }
   });
 
