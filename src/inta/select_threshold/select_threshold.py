@@ -8,7 +8,8 @@ from inta.template_renderer import render_template
 def select_threshold_plot(
     y,
     scores,
-    savepath="select_threshold_plot.html",
+    savepath="select-threshold-plot.html",
+    image_savepath="select-threshold-plot",
 ):
     assert np.unique(y).tolist() == [0, 1], "y must be binary labels 0 and 1"
 
@@ -53,6 +54,7 @@ def select_threshold_plot(
             "maxScore": max_score,
             "scoreRange": max_score - min_score,
             "maxDistributionY": max_distribution_y,
+            "imageSavepath": image_savepath,
         },
     }
 

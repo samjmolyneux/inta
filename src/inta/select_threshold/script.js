@@ -33,6 +33,7 @@
  * @property {number} rocAuc - ROC AUC of model
  * @property {number} prAuc - PR AUC of model
  * @property {number} dp - decimal places for UI/labels
+ * @property {string} imageSavepath - savepath to save image of plot when plotly save button clicked
  */
 
 /**
@@ -178,6 +179,7 @@ const createSelectThresholdPlot = (cfg) => {
     rocAuc,
     prAuc,
     dp,
+    imageSavepath,
   } = cfg;
 
   const TNDistribution = {
@@ -513,7 +515,7 @@ const createSelectThresholdPlot = (cfg) => {
     displayModeBar: "always",
     toImageButtonOptions: {
       format: "png",
-      filename: "eppi-select-threshold", //TODO: configure this from python.
+      filename: imageSavepath,
       height: 720,
       width: 1480,
       scale: 3,
