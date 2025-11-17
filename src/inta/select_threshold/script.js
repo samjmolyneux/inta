@@ -1,4 +1,95 @@
 /**
+ * @typedef {object} ClassificationMetrics
+ * @property {number} TN - Number of true negatives
+ * @property {number} FP - Number of false positives
+ * @property {number} FN - Number of false negatives
+ * @property {number} TP - Number of true positives
+ * @property {number} accuracy - Overall accuracy
+ * @property {number} TPR - True positive rate (recall)
+ * @property {number} FPR - False positive rate
+ * @property {number} precision - Precision
+ * @property {number} balancedAccuracy - Balanced accuracy
+ * @property {number} F4 - F4 score
+ */
+
+/**
+ * Select-threshold plot configuration.
+ * Loaded from #plot-config JSON, then augmented in initConfig().
+ * @typedef {object} SelectThresholdCfg
+ * @property {Map<string, number>} traceToIndex - map from trace names to plotly data array indices
+ * @property {number} minScore - dataset min score
+ * @property {number} maxScore - dataset max score
+ * @property {number} scoreRange - convenience: maxScore - minScore
+ * @property {number} maxDistributionY - y-axis max for distribution plots
+ * @property {number[]} xN - negative density: x
+ * @property {number[]} yN - negative density: y
+ * @property {number[]} xP - positive density: x
+ * @property {number[]} yP - positive density: y
+ * @property {number[]} posScores - positive-class scores sorted ascending
+ * @property {number[]} negScores - negative-class scores sorted ascending
+ * @property {number[]} xGains - gains curve x (proportion examined)
+ * @property {number[]} yGains - gains curve y (recall)
+ * @property {number[]} gainsThresholds - threshold per gains point
+ * @property {number} rocAuc - ROC AUC of model
+ * @property {number} prAuc - PR AUC of model
+ * @property {number} dp - decimal places for UI/labels
+ */
+
+/**
+ * Select-threshold UI elements.
+ * Resolved once in initUI().
+ * @typedef {object} SelectThresholdUI
+ * @property {HTMLInputElement} recallInput - input for recall percentage
+ * @property {HTMLInputElement} thresholdInput - input for decision threshold
+ * @property {HTMLInputElement} thresholdSlider - range slider for decision threshold
+ * @property {HTMLElement} thresholdDisplay - element displaying the formatted threshold text
+ */
+
+/**
+ * TN/FP split of the negative-density trace at a threshold.
+ * @typedef {object} NegativeSplitSegments
+ * @property {number[]} xTN - x values for TN segment
+ * @property {number[]} yTN - y values for TN segment
+ * @property {number[]} xFP - x values for FP segment
+ * @property {number[]} yFP - y values for FP segment
+ */
+
+/**
+ * FN/TP split of the positive-density trace at a threshold.
+ * @typedef {object} PositiveSplitSegments
+ * @property {number[]} xFN - x values for FN segment
+ * @property {number[]} yFN - y values for FN segment
+ * @property {number[]} xTP - x values for TP segment
+ * @property {number[]} yTP - y values for TP segment
+ */
+
+/**
+ * Visibility flags for distribution annotations.
+ * @typedef {object} DistributionAnnotationVisibility
+ * @property {boolean} distributionTNAnnotationVisible - show TN label
+ * @property {boolean} distributionFNAnnotationVisible - show FN label
+ * @property {boolean} distributionFPAnnotationVisible - show FP label
+ * @property {boolean} distributionTPAnnotationVisible - show TP label
+ */
+
+/**
+ * Preformatted values for the variable metrics table.
+ * @typedef {object} VariableTableTraceData
+ * @property {string[]} variableTableMetricNames - metric names
+ * @property {string[]} variableTableMetrics - formatted metric values
+ */
+
+/**
+ * Lines and proportion for the gains plot at a threshold.
+ * @typedef {object} GainsGuideLines
+ * @property {number[]} gainsVx - vertical line x values [proportion, proportion]
+ * @property {number[]} gainsVy - vertical line y values [0, recall]
+ * @property {number[]} gainsHx - horizontal line x values [0, proportion]
+ * @property {number[]} gainsHy - horizontal line y values [recall, recall]
+ * @property {number} proportionAbove - proportion of examples above threshold
+ */
+
+/**
  * Binary search to find smallest array index i s.t. threshold <= arr[i].
  * If all elements in arr are < threshold, returns arr.length.
  * @function findSplitIndex
@@ -19,20 +110,6 @@ const findSplitIndex = (arr, threshold) => {
   }
   return lo;
 };
-
-/**
- * @typedef {object} ClassificationMetrics
- * @property {number} TN - Number of true negatives
- * @property {number} FP - Number of false positives
- * @property {number} FN - Number of false negatives
- * @property {number} TP - Number of true positives
- * @property {number} accuracy - Overall accuracy
- * @property {number} TPR - True positive rate (recall)
- * @property {number} FPR - False positive rate
- * @property {number} precision - Precision
- * @property {number} balancedAccuracy - Balanced accuracy
- * @property {number} F4 - F4 score
- */
 
 /**
  * Computes common binary classification metrics at a given decision threshold.
@@ -81,35 +158,13 @@ const computeClassificationMetrics = (threshold, posScores, negScores) => {
   };
 };
 
-// /**
-//  * Creates the initial select threshold plot with mostly empty traces. The empty traces
-//  * should be filled with `updatePlot()` after creation.
-//  * @function createSelectThresholdPlot
-//  * @param {Map<string, number>} traceToIndex - Map from trace names to plotly data array indices.
-//  * @param {number} minScore - Minimum predicted score in dataset.
-//  * @param {number} maxScore - Maximum predicted score in dataset.
-//  * @param {number} maxDistributionY - Maximum Y value for distribution traces.
-//  * @param {number[]} xGains - X values for gains curve.
-//  * @param {number[]} yGains - Y values for gains curve.
-//  * @param {number[]} gainsThresholds - Thresholds corresponding to gains curve points.
-//  * @param {number} rocAuc - ROC AUC value to display in fixed metrics table.
-//  * @param {number} prAuc - PR AUC value to display in fixed metrics table.
-//  * @param {number} dp - Number of decimal places for metric display.
-//  * @returns {void}
-//  */
-// const createSelectThresholdPlot = (
-//   traceToIndex,
-//   minScore,
-//   maxScore,
-//   maxDistributionY,
-//   xGains,
-//   yGains,
-//   gainsThresholds,
-//   rocAuc,
-//   prAuc,
-//   dp,
-// ) => {
-
+/**
+ * Create the initial select-threshold Plotly figure with empty/updateable traces and layout.
+ * We will fill the data with `updatePlot()` calls.
+ * @function createSelectThresholdPlot
+ * @param {SelectThresholdCfg} cfg - plotting configuration and indices
+ * @returns {void}
+ */
 const createSelectThresholdPlot = (cfg) => {
   const {
     traceToIndex,
@@ -125,7 +180,6 @@ const createSelectThresholdPlot = (cfg) => {
     dp,
   } = cfg;
 
-  // Create initial traces; we’ll fill them on update
   const TNDistribution = {
     x: [],
     y: [],
@@ -315,9 +369,40 @@ const createSelectThresholdPlot = (cfg) => {
     name: "",
   };
 
-  const data = [];
+  const confusionMatrixOutline = [
+    {
+      type: "rect",
+      xref: "x2",
+      yref: "y2",
+      x0: -0.5,
+      y0: -0.5,
+      x1: 1.5,
+      y1: 1.5,
+      line: { color: "black", width: 2 },
+    },
+    {
+      type: "line",
+      xref: "x2",
+      yref: "y2",
+      x0: -0.5,
+      y0: 0.5,
+      x1: 1.5,
+      y1: 0.5,
+      line: { color: "black", width: 1.5 },
+    },
+    {
+      type: "line",
+      xref: "x2",
+      yref: "y2",
+      x0: 0.5,
+      y0: -0.5,
+      x1: 0.5,
+      y1: 1.5,
+      line: { color: "black", width: 1.5 },
+    },
+  ];
 
-  // TODO: There must be some sort of map way to not have to write this all out
+  const data = [];
 
   // Top-left negative distribution
   data[traceToIndex.get("TNDistribution")] = TNDistribution;
@@ -357,26 +442,23 @@ const createSelectThresholdPlot = (cfg) => {
     grid: {
       rows: 2,
       columns: 2,
-      pattern: "independent", // each cell has its own axes
+      pattern: "independent",
       roworder: "top to bottom",
     },
-    // Domain definitions for each subplot (optional, but shown for clarity)
     xaxis: {
-      domain: [0.0, 0.45], // top-left
+      domain: [0.0, 0.45],
       anchor: "y",
-      // autorange: false,
       range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
       zeroline: false,
     },
     yaxis: {
-      domain: [0.55, 1.0], // top-left
+      domain: [0.55, 1.0],
       anchor: "x",
       title: { text: "Actual Negatives" },
       range: [0, maxDistributionY * 1.1],
-      // zeroline: false,
     },
     xaxis2: {
-      domain: [0.55, 0.775], // top-right (heatmap only)
+      domain: [0.55, 0.775],
       anchor: "y2",
       showgrid: false,
       zeroline: false,
@@ -385,7 +467,7 @@ const createSelectThresholdPlot = (cfg) => {
       ticks: "",
     },
     yaxis2: {
-      domain: [0.55, 1.0], // top-right
+      domain: [0.55, 1.0],
       anchor: "x2",
       showgrid: false,
       zeroline: false,
@@ -394,10 +476,9 @@ const createSelectThresholdPlot = (cfg) => {
       ticks: "",
     },
     xaxis3: {
-      domain: [0.0, 0.45], // bottom-left
+      domain: [0.0, 0.45],
       anchor: "y3",
       title: "Predicted Probability",
-      // autorange: false,
       range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
       zeroline: false,
     },
@@ -408,9 +489,9 @@ const createSelectThresholdPlot = (cfg) => {
       range: [0, maxDistributionY * 1.1],
     },
     xaxis4: {
-      domain: [0.55, 1.0], // bottom-right
+      domain: [0.55, 1.0],
       anchor: "y4",
-      title: { text: "Proportion of Papers Examined" }, //TODO: why isn't this showing up?
+      title: { text: "Proportion of Papers Examined" },
       range: [-0.02, 1.02],
     },
     yaxis4: {
@@ -420,43 +501,11 @@ const createSelectThresholdPlot = (cfg) => {
       range: [-0.02, 1.02],
     },
     annotations: [],
-    shapes: [
-      // The confusion matrix boundary lines
-      {
-        type: "rect",
-        xref: "x2",
-        yref: "y2",
-        x0: -0.5,
-        y0: -0.5,
-        x1: 1.5,
-        y1: 1.5,
-        line: { color: "black", width: 2 },
-      },
-      {
-        type: "line",
-        xref: "x2",
-        yref: "y2",
-        x0: -0.5,
-        y0: 0.5,
-        x1: 1.5,
-        y1: 0.5,
-        line: { color: "black", width: 1.5 },
-      },
-      {
-        type: "line",
-        xref: "x2",
-        yref: "y2",
-        x0: 0.5,
-        y0: -0.5,
-        x1: 0.5,
-        y1: 1.5,
-        line: { color: "black", width: 1.5 },
-      },
-    ],
+    shapes: confusionMatrixOutline,
     dragmode: false,
   };
 
-  const config = {
+  const plotlySettings = {
     responsive: true,
     scrollZoom: false,
     modeBarButtons: [["toImage"]],
@@ -464,22 +513,28 @@ const createSelectThresholdPlot = (cfg) => {
     displayModeBar: "always",
     toImageButtonOptions: {
       format: "png",
-      filename: "eppi-select-threshold",
+      filename: "eppi-select-threshold", //TODO: configure this from python.
       height: 720,
       width: 1480,
       scale: 3,
     },
   };
 
-  Plotly.newPlot("plotDiv", data, layout, config);
+  Plotly.newPlot("plotDiv", data, layout, plotlySettings);
 };
 
+/**
+ * Split negative-density trace into TN/FP segments at a threshold.
+ * @function splitNegativeTraceByClassification
+ * @param {number[]} xN - negative density x values
+ * @param {number[]} yN - negative density y values
+ * @param {number} threshold - decision threshold
+ * @returns {NegativeSplitSegments} - TN (left) and FP (right) segments
+ */
 const splitNegativeTraceByClassification = (xN, yN, threshold) => {
   const idxN = findSplitIndex(xN, threshold);
 
   if (idxN > 0 && idxN < xN.length) {
-    // TODO:  write in comments that idxN should be the first index where xN[idxN] >= threshold
-
     const xNDiff = xN[idxN] - xN[idxN - 1];
     const yNDiff = yN[idxN] - yN[idxN - 1];
     const yInterpolated = yN[idxN] + ((threshold - xN[idxN]) * yNDiff) / xNDiff;
@@ -507,6 +562,14 @@ const splitNegativeTraceByClassification = (xN, yN, threshold) => {
   };
 };
 
+/**
+ * Split positive-density trace into FN/TP segments at a threshold.
+ * @function splitPositiveTraceByClassification
+ * @param {number[]} xP - positive density x values
+ * @param {number[]} yP - positive density y values
+ * @param {number} threshold - decision threshold
+ * @returns {PositiveSplitSegments} - FN (left) and TP (right) segments
+ */
 const splitPositiveTraceByClassification = (xP, yP, threshold) => {
   const idxP = findSplitIndex(xP, threshold);
 
@@ -538,6 +601,15 @@ const splitPositiveTraceByClassification = (xP, yP, threshold) => {
   };
 };
 
+/**
+ * Update UI inputs/displays to reflect the current threshold and metrics.
+ * @function updateInputElements
+ * @param {SelectThresholdUI} ui - UI elements
+ * @param {number} threshold - current decision threshold
+ * @param {ClassificationMetrics} metrics - computed metrics at threshold
+ * @param {number} dp - decimal places to display
+ * @returns {void}
+ */
 const updateInputElements = (ui, threshold, metrics, dp) => {
   ui.recallInput.value = (100 * metrics.TPR).toFixed(dp);
   ui.thresholdInput.value = threshold.toFixed(dp);
@@ -545,6 +617,14 @@ const updateInputElements = (ui, threshold, metrics, dp) => {
   ui.thresholdDisplay.textContent = threshold.toFixed(dp);
 };
 
+/**
+ * Determine visibility of distribution annotations based on threshold position within score range.
+ * @function distributionsAnnotationVisibility
+ * @param {number} threshold - decision threshold
+ * @param {number} minScore - minimum score in dataset
+ * @param {number} scoreRange - maxScore - minScore
+ * @returns {DistributionAnnotationVisibility} - visibility flags
+ */
 const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
   if (threshold > minScore + 0.96 * scoreRange) {
     return {
@@ -570,6 +650,13 @@ const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
   };
 };
 
+/**
+ * Build variable-metrics table values (labels and formatted percentages).
+ * @function computeVariableTableTraceData
+ * @param {ClassificationMetrics} metrics - computed metrics at threshold
+ * @param {number} dp - decimal places for formatting
+ * @returns {VariableTableTraceData} - names and formatted values
+ */
 const computeVariableTableTraceData = (metrics, dp) => {
   const fracToPercent = (v) => `${(100 * v).toFixed(dp)}%`;
 
@@ -589,18 +676,22 @@ const computeVariableTableTraceData = (metrics, dp) => {
   };
 };
 
-const computeGainsHozVerLines = (
-  threshold,
-  metrics,
-  negPredScores,
-  posPredScores,
-) => {
-  const negIdx = findSplitIndex(negPredScores, threshold);
-  const posIdx = findSplitIndex(posPredScores, threshold);
+/**
+ * Compute gains-plot guide lines and proportion examined at a threshold.
+ * @function computeGainsHozVerLines
+ * @param {number} threshold - decision threshold
+ * @param {ClassificationMetrics} metrics - metrics at threshold (for recall/TPR)
+ * @param {number[]} posScores - positive-class scores (sorted ascending)
+ * @param {number[]} negScores - negative-class scores (sorted ascending)
+ * @returns {GainsGuideLines} - vertical/horizontal line coords and examined proportion
+ */
+const computeGainsHozVerLines = (threshold, metrics, posScores, negScores) => {
+  const negIdx = findSplitIndex(negScores, threshold);
+  const posIdx = findSplitIndex(posScores, threshold);
 
-  const numNegAbove = negPredScores.length - negIdx;
-  const numPosAbove = posPredScores.length - posIdx;
-  const totalNumScores = negPredScores.length + posPredScores.length;
+  const numNegAbove = negScores.length - negIdx;
+  const numPosAbove = posScores.length - posIdx;
+  const totalNumScores = negScores.length + posScores.length;
 
   const proportionAbove = (numNegAbove + numPosAbove) / totalNumScores;
 
@@ -613,6 +704,14 @@ const computeGainsHozVerLines = (
   };
 };
 
+/**
+ * Recompute traces, annotations, tables, and UI and apply to figure.
+ * @function updatePlot
+ * @param {number} threshold - decision threshold
+ * @param {SelectThresholdCfg} cfg - plotting configuration and data
+ * @param {SelectThresholdUI} ui - UI elements
+ * @returns {void}
+ */
 const updatePlot = (threshold, cfg, ui) => {
   const {
     traceToIndex,
@@ -620,8 +719,8 @@ const updatePlot = (threshold, cfg, ui) => {
     yN,
     xP,
     yP,
-    posPredScores,
-    negPredScores,
+    posScores,
+    negScores,
     minScore,
     scoreRange,
     maxDistributionY,
@@ -646,11 +745,7 @@ const updatePlot = (threshold, cfg, ui) => {
   const linePosX = [threshold, threshold];
   const linePosY = [0, maxDistributionY * 1.1];
 
-  const metrics = computeClassificationMetrics(
-    threshold,
-    posPredScores,
-    negPredScores,
-  );
+  const metrics = computeClassificationMetrics(threshold, posScores, negScores);
 
   const { variableTableMetricNames, variableTableMetrics } =
     computeVariableTableTraceData(metrics, dp);
@@ -663,7 +758,7 @@ const updatePlot = (threshold, cfg, ui) => {
   } = distributionsAnnotationVisibility(threshold, minScore, scoreRange);
 
   const { gainsVx, gainsVy, gainsHx, gainsHy, proportionAbove } =
-    computeGainsHozVerLines(threshold, metrics, negPredScores, posPredScores);
+    computeGainsHozVerLines(threshold, metrics, posScores, negScores);
 
   const FPConfusionAnnotation = {
     text: `FP: ${metrics.FP}`,
@@ -839,19 +934,38 @@ const clip = (val, min, max) => {
   }
   return val;
 };
+//TODO: move away from restore and clear methods on html element
 
+/**
+ * Temporarily clear an input’s value while caching the original in a data attribute.
+ * @function clearAndStore
+ * @param {HTMLInputElement} inputElement - input whose value is cleared
+ * @returns {void}
+ */
 const clearAndStore = (inputElement) => {
   inputElement.dataset.originalValue = inputElement.value;
   inputElement.value = "";
 };
 
-//TODO: is it possible that this is being called too much?
+/**
+ * Restore an input’s original value if it was cleared and left empty.
+ * @function restoreIfEmpty
+ * @param {HTMLInputElement} inputElement - input to restore
+ * @returns {void}
+ */
 const restoreIfEmpty = (inputElement) => {
+  //TODO: is it possible that this is being called too much?
   if (inputElement.value === "") {
     inputElement.value = inputElement.dataset.originalValue;
   }
 };
 
+/**
+ * Initialise and return the select-threshold plot configuration.
+ * Loads JSON from #plot-config, amends sentinel thresholds, builds the trace index, and sets dp.
+ * @function initConfig
+ * @returns {SelectThresholdCfg} - fully initialised configuration used by plotting/update functions
+ */
 const initConfig = () => {
   const plotConfig = JSON.parse(
     document.querySelector("#plot-config").textContent,
@@ -884,6 +998,11 @@ const initConfig = () => {
   return plotConfig;
 };
 
+/**
+ * Resolve and return the UI elements used by the select-threshold plot.
+ * @function initUI
+ * @returns {SelectThresholdUI} - object containing references to required inputs and display nodes
+ */
 const initUI = () => ({
   recallInput: document.querySelector("#recallInput"),
   thresholdInput: document.querySelector("#thresholdInput"),
@@ -891,19 +1010,33 @@ const initUI = () => ({
   thresholdDisplay: document.querySelector("#thresholdValue"),
 });
 
+/**
+ * Attach all event handlers for the select-threshold widget.
+ * - Recall input: on Enter, maps recall (%) to a threshold.
+ * - Threshold slider: on input, updates the plot at the new threshold.
+ * - Threshold input: on Enter, parses number and updates the plot.
+ * - Text inputs: on focus/blur, temporarily clear and restore original values for easier editing.
+ * Handlers call `updatePlot(threshold, cfg, ui)` to keep Plotly and UI elements in sync.
+ * @function initEventListeners
+ * @param {SelectThresholdCfg} cfg - select-threshold configuration
+ * @param {SelectThresholdUI} ui - resolved UI elements
+ * @returns {void}
+ */
 const initEventListeners = (cfg, ui) => {
   // TODO: Explain the logic in jsdoc. (It's on ipad notes)
+  // TODO: refactor this func somehow
+  const { posScores } = cfg;
+
   ui.recallInput.addEventListener("keydown", (event) => {
     const recallFrac = ui.recallInput.valueAsNumber / 100;
     const clippedRecallFrac = clip(recallFrac, 0, 1);
 
     if (event.key === "Enter") {
       const idx = Math.floor(
-        cfg.posPredScores.length - clippedRecallFrac * cfg.posPredScores.length,
+        posScores.length - clippedRecallFrac * posScores.length,
       );
 
-      const threshold =
-        idx === cfg.posPredScores.length ? Infinity : cfg.posPredScores[idx];
+      const threshold = idx === posScores.length ? Infinity : posScores[idx];
 
       updatePlot(threshold, cfg, ui);
     }
