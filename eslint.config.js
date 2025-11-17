@@ -49,6 +49,7 @@ export default defineConfig([
       "no-magic-numbers": ["warn"],
       "perfectionist/sort-objects": "off",
       "perfectionist/sort-imports": "off",
+      "perfectionist/sort-classes": "off",
       // Set code max length to 100, because default is 80, but prettier allows longer than it's limit.
       "@stylistic/max-len": ["warn", { code: 100, comments: 100 }],
       "@stylistic/quotes": ["error", "double"],
