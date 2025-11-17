@@ -1,5 +1,3 @@
-// TOODO: the plot hover over recall entry says that it must be an integer. Need to fix this.
-
 /**
  * @typedef {object} ClassificationMetrics
  * @property {number} TN - Number of true negatives
