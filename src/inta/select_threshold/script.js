@@ -603,6 +603,7 @@ const splitPositiveTraceByClassification = (xP, yP, threshold) => {
   };
 };
 
+// TODO: Should separate updateInputElements from updatePlot for better modularity
 /**
  * Update UI inputs/displays to reflect the current threshold and metrics.
  * @function updateInputElements
@@ -617,6 +618,9 @@ const updateInputElements = (ui, threshold, metrics, dp) => {
   ui.thresholdInput.value = threshold.toFixed(dp);
   ui.thresholdSlider.value = threshold.toFixed(dp);
   ui.thresholdDisplay.textContent = threshold.toFixed(dp);
+
+  ui.recallInput.dataset.committedValue = ui.recallInput.value;
+  ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
 };
 
 /**
@@ -960,7 +964,10 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
   updatePlot(threshold, cfg, ui);
 };
 
-//TODO: move away from restore and clear methods on html element
+// TODO: Figure difference between handle and on for function start name convention.
+// TODO: move away from restore and clear methods on html element
+// TODO: These inputs are actually not good enough. If we enter a new number and then leave a text box, the number stays in the text box but the plot doesn't change.
+// TODO: Make sure starting recall value is set correctly on load.
 
 /**
  * Temporarily clear an input’s value while caching the original in a data attribute.
@@ -968,9 +975,12 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
  * @param {HTMLInputElement} inputElement - input whose value is cleared
  * @returns {void}
  */
-const clearAndStore = (inputElement) => {
-  inputElement.dataset.originalValue = inputElement.value;
-  inputElement.value = "";
+const handleFocus = (event) => {
+  const inputElement = event.target;
+
+  if (inputElement.value === inputElement.dataset.committedValue) {
+    inputElement.value = "";
+  }
 };
 
 /**
@@ -979,11 +989,9 @@ const clearAndStore = (inputElement) => {
  * @param {HTMLInputElement} inputElement - input to restore
  * @returns {void}
  */
-const restoreIfEmpty = (inputElement) => {
-  //TODO: is it possible that this is being called too much?
-  if (inputElement.value === "") {
-    inputElement.value = inputElement.dataset.originalValue;
-  }
+const handleRevertOnBlur = (event) => {
+  const inputElement = event.target;
+  inputElement.value = inputElement.dataset.committedValue;
 };
 
 /**
@@ -1049,40 +1057,51 @@ const initUI = () => ({
  * @returns {void}
  */
 const initEventListeners = (cfg, ui) => {
-  // TODO: refactor this func somehow
-
-  ui.recallInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      const recallPct = ui.recallInput.valueAsNumber;
-      updatePlotWRecall(recallPct, cfg, ui);
-    }
-  });
-
   ui.thresholdSlider.addEventListener("input", (event) => {
     const threshold = Number.parseFloat(event.target.value);
     updatePlot(threshold, cfg, ui);
   });
 
+  ui.recallInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+
+    if (ui.recallInput.checkValidity()) {
+      const recallPct = ui.recallInput.valueAsNumber;
+      updatePlotWRecall(recallPct, cfg, ui);
+      return;
+    }
+
+    if (
+      ui.recallInput.validity.rangeUnderflow ||
+      ui.recallInput.validity.rangeOverflow
+    ) {
+      const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
+      updatePlotWRecall(recallPct, cfg, ui);
+    }
+
+    ui.recallInput.value = ui.recallInput.dataset.committedValue;
+  });
+
   ui.thresholdInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    if (event.key !== "Enter") return;
+
+    if (ui.thresholdInput.checkValidity()) {
       const threshold = Number.parseFloat(event.target.value);
       updatePlot(threshold, cfg, ui);
+      return;
     }
+
+    ui.thresholdInput.value = ui.thresholdInput.dataset.committedValue;
   });
 
-  ui.thresholdInput.addEventListener("focus", (event) => {
-    clearAndStore(event.target);
-  });
-  ui.thresholdInput.addEventListener("blur", (event) => {
-    restoreIfEmpty(event.target);
-  });
+  ui.thresholdInput.addEventListener("focus", handleFocus);
+  ui.thresholdInput.addEventListener("blur", handleRevertOnBlur);
 
-  ui.recallInput.addEventListener("focus", (event) => {
-    clearAndStore(event.target);
-  });
-  ui.recallInput.addEventListener("blur", (event) => {
-    restoreIfEmpty(event.target);
-  });
+  ui.recallInput.addEventListener("focus", handleFocus);
+  ui.recallInput.addEventListener("blur", handleRevertOnBlur);
+
+  ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
+  ui.recallInput.dataset.committedValue = ui.recallInput.value;
 };
 
 if (!window.Plotly) {
