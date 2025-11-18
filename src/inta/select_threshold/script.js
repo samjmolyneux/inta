@@ -970,9 +970,9 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
 // TODO: Make sure starting recall value is set correctly on load.
 
 /**
- * Temporarily clear an input’s value while caching the original in a data attribute.
- * @function clearAndStore
- * @param {HTMLInputElement} inputElement - input whose value is cleared
+ * Temporarily clear an input’s value on focus.
+ * @function handleFocus
+ * @param {FocusEvent} event - focus event
  * @returns {void}
  */
 const handleFocus = (event) => {
@@ -984,14 +984,66 @@ const handleFocus = (event) => {
 };
 
 /**
- * Restore an input’s original value if it was cleared and left empty.
- * @function restoreIfEmpty
- * @param {HTMLInputElement} inputElement - input to restore
+ * Restore an input’s original value on blur.
+ * @function handleRevertOnBlur
+ * @param {FocusEvent} event - the blur event
  * @returns {void}
  */
 const handleRevertOnBlur = (event) => {
   const inputElement = event.target;
   inputElement.value = inputElement.dataset.committedValue;
+};
+
+/**
+ * Builds a keydown handler for the recall input.
+ * On Enter: if valid, updates the plot using the recall %;
+ * if out of range, clamps to [0, 100] then updates;
+ * otherwise reverts to the last committed value.
+ * @function makeHandleRecallInput
+ * @param {SelectThresholdCfg} cfg - Plot configuration/data.
+ * @param {SelectThresholdUI} ui - UI element references.
+ * @returns {(e: KeyboardEvent) => void} Keydown handler for the recall input.
+ */
+const makeHandleRecallInput = (cfg, ui) => (event) => {
+  if (event.key !== "Enter") return;
+
+  if (ui.recallInput.checkValidity()) {
+    const recallPct = ui.recallInput.valueAsNumber;
+    updatePlotWRecall(recallPct, cfg, ui);
+    return;
+  }
+
+  if (
+    ui.recallInput.validity.rangeUnderflow ||
+    ui.recallInput.validity.rangeOverflow
+  ) {
+    const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
+    updatePlotWRecall(recallPct, cfg, ui);
+  }
+
+  ui.recallInput.value = ui.recallInput.dataset.committedValue;
+};
+
+/**
+ * Builds a keydown handler for the threshold input.
+ * On Enter: if valid, parses the threshold and updates the plot;
+ * otherwise reverts to the last committed value.
+ * Requires `ui.thresholdInput.dataset.committedValue` to be set elsewhere.
+ * @function makeHandleThresholdInput
+ * @param {SelectThresholdCfg} cfg - Plot configuration/data.
+ * @param {SelectThresholdUI} ui - UI element references.
+ * @returns {(e: KeyboardEvent) => void} Keydown handler for the threshold input.
+ */
+const makeHandleThresholdInput = (cfg, ui) => (event) => {
+  if (event.key !== "Enter") return;
+
+  if (ui.thresholdInput.checkValidity()) {
+    const threshold = Number.parseFloat(event.target.value);
+    updatePlot(threshold, cfg, ui);
+    return;
+  }
+
+  ui.thresholdInput.value = ui.thresholdInput.dataset.committedValue;
 };
 
 /**
@@ -1062,45 +1114,17 @@ const initEventListeners = (cfg, ui) => {
     updatePlot(threshold, cfg, ui);
   });
 
-  ui.recallInput.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-
-    if (ui.recallInput.checkValidity()) {
-      const recallPct = ui.recallInput.valueAsNumber;
-      updatePlotWRecall(recallPct, cfg, ui);
-      return;
-    }
-
-    if (
-      ui.recallInput.validity.rangeUnderflow ||
-      ui.recallInput.validity.rangeOverflow
-    ) {
-      const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
-      updatePlotWRecall(recallPct, cfg, ui);
-    }
-
-    ui.recallInput.value = ui.recallInput.dataset.committedValue;
-  });
-
-  ui.thresholdInput.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-
-    if (ui.thresholdInput.checkValidity()) {
-      const threshold = Number.parseFloat(event.target.value);
-      updatePlot(threshold, cfg, ui);
-      return;
-    }
-
-    ui.thresholdInput.value = ui.thresholdInput.dataset.committedValue;
-  });
-
+  ui.thresholdInput.addEventListener(
+    "keydown",
+    makeHandleThresholdInput(cfg, ui),
+  );
   ui.thresholdInput.addEventListener("focus", handleFocus);
   ui.thresholdInput.addEventListener("blur", handleRevertOnBlur);
+  ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
 
+  ui.recallInput.addEventListener("keydown", makeHandleRecallInput(cfg, ui));
   ui.recallInput.addEventListener("focus", handleFocus);
   ui.recallInput.addEventListener("blur", handleRevertOnBlur);
-
-  ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
   ui.recallInput.dataset.committedValue = ui.recallInput.value;
 };
 
