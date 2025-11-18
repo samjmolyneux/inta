@@ -1,3 +1,6 @@
+/** @type {typeof import("plotly.js")} */
+const plt = globalThis.Plotly;
+
 /**
  * @typedef {object} ClassificationMetrics
  * @property {number} TN - Number of true negatives
@@ -518,7 +521,7 @@ const createSelectThresholdPlot = (cfg) => {
     },
   };
 
-  Plotly.newPlot("plotDiv", data, layout, plotlySettings);
+  plt.newPlot("plotDiv", data, layout, plotlySettings);
 };
 
 /**
@@ -895,9 +898,9 @@ const updatePlot = (threshold, cfg, ui) => {
     yArr.push(update.y);
   }
 
-  Plotly.restyle("plotDiv", { x: xArr, y: yArr }, indices);
+  plt.restyle("plotDiv", { x: xArr, y: yArr }, indices);
 
-  Plotly.restyle(
+  plt.restyle(
     "plotDiv",
     {
       "cells.values": [[variableTableMetricNames, variableTableMetrics]],
@@ -905,7 +908,7 @@ const updatePlot = (threshold, cfg, ui) => {
     [traceToIndex.get("variableMetricsTable")],
   );
 
-  Plotly.relayout("plotDiv", {
+  plt.relayout("plotDiv", {
     annotations: annotationUpdates,
   });
 
@@ -953,11 +956,11 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
 /**
  * Temporarily clear an input’s value on focus.
  * @function handleFocus
- * @param {FocusEvent} event - focus event
+ * @param {FocusEvent} e - focus event
  * @returns {void}
  */
-const handleFocus = (event) => {
-  const inputElement = event.target;
+const handleFocus = (e) => {
+  const inputElement = e.target;
 
   if (inputElement.value === inputElement.dataset.committedValue) {
     inputElement.value = "";
@@ -967,11 +970,11 @@ const handleFocus = (event) => {
 /**
  * Restore an input’s original value on blur.
  * @function handleRevertOnBlur
- * @param {FocusEvent} event - the blur event
+ * @param {FocusEvent} e - the blur event
  * @returns {void}
  */
-const handleRevertOnBlur = (event) => {
-  const inputElement = event.target;
+const handleRevertOnBlur = (e) => {
+  const inputElement = e.target;
   inputElement.value = inputElement.dataset.committedValue;
 };
 
@@ -997,8 +1000,8 @@ const makeHandleSliderInput = (cfg, ui) => () => {
  * @param {SelectThresholdUI} ui - UI element references.
  * @returns {(e: KeyboardEvent) => void} Keydown handler for the recall input.
  */
-const makeHandleRecallInput = (cfg, ui) => (event) => {
-  if (event.key !== "Enter") return;
+const makeHandleRecallInput = (cfg, ui) => (e) => {
+  if (e.key !== "Enter") return;
 
   if (ui.recallInput.checkValidity()) {
     const recallPct = ui.recallInput.valueAsNumber;
@@ -1024,11 +1027,11 @@ const makeHandleRecallInput = (cfg, ui) => (event) => {
  * @param {SelectThresholdUI} ui - UI element references.
  * @returns {(e: KeyboardEvent) => void} Keydown handler for the threshold input.
  */
-const makeHandleThresholdInput = (cfg, ui) => (event) => {
-  if (event.key !== "Enter") return;
+const makeHandleThresholdInput = (cfg, ui) => (e) => {
+  if (e.key !== "Enter") return;
 
   if (ui.thresholdInput.checkValidity()) {
-    const threshold = Number.parseFloat(event.target.value);
+    const threshold = Number.parseFloat(e.target.value);
     updatePlot(threshold, cfg, ui);
     return;
   }
@@ -1111,7 +1114,7 @@ const initEventListeners = (cfg, ui) => {
 };
 
 const main = () => {
-  if (!window.Plotly) {
+  if (!plt) {
     document.querySelector("#cdn-fail").hidden = false;
   }
 
