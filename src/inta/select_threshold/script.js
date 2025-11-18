@@ -950,11 +950,6 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
   updatePlot(threshold, cfg, ui);
 };
 
-// TODO: Figure difference between handle and on for function start name convention.
-// TODO: move away from restore and clear methods on html element
-// TODO: These inputs are actually not good enough. If we enter a new number and then leave a text box, the number stays in the text box but the plot doesn't change.
-// TODO: Make sure starting recall value is set correctly on load.
-
 /**
  * Temporarily clear an input’s value on focus.
  * @function handleFocus
@@ -1115,14 +1110,18 @@ const initEventListeners = (cfg, ui) => {
   ui.recallInput.dataset.committedValue = ui.recallInput.value;
 };
 
-if (!window.Plotly) {
-  document.querySelector("#cdn-fail").hidden = false;
-}
+const main = () => {
+  if (!window.Plotly) {
+    document.querySelector("#cdn-fail").hidden = false;
+  }
 
-const cfg = initConfig();
-const ui = initUI();
-initEventListeners(cfg, ui);
-const initThreshold = ui.thresholdSlider.valueAsNumber;
+  const cfg = initConfig();
+  const ui = initUI();
+  initEventListeners(cfg, ui);
+  const initThreshold = ui.thresholdSlider.valueAsNumber;
 
-createSelectThresholdPlot(cfg);
-updatePlot(initThreshold, cfg, ui);
+  createSelectThresholdPlot(cfg);
+  updatePlot(initThreshold, cfg, ui);
+};
+
+main();
