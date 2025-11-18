@@ -1122,7 +1122,7 @@ if (!window.Plotly) {
 const cfg = initConfig();
 const ui = initUI();
 initEventListeners(cfg, ui);
-const initThreshold = Number.parseFloat(ui.thresholdSlider.value);
+const initThreshold = ui.thresholdSlider.valueAsNumber;
 
 createSelectThresholdPlot(cfg);
 updatePlot(initThreshold, cfg, ui);
