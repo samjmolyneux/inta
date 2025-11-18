@@ -1,5 +1,4 @@
-/** @type {typeof import("plotly.js")} */
-const plt = globalThis.Plotly;
+/* global Plotly */
 
 /**
  * @typedef {object} ClassificationMetrics
@@ -516,7 +515,7 @@ const createSelectThresholdPlot = (cfg) => {
     },
   };
 
-  plt.newPlot("plotDiv", data, layout, plotlySettings);
+  Plotly.newPlot("plotDiv", data, layout, plotlySettings);
 };
 
 /**
@@ -885,9 +884,9 @@ const updatePlot = (threshold, cfg, ui) => {
     yArr.push(update.y);
   }
 
-  plt.restyle("plotDiv", { x: xArr, y: yArr }, indices);
+  Plotly.restyle("plotDiv", { x: xArr, y: yArr }, indices);
 
-  plt.restyle(
+  Plotly.restyle(
     "plotDiv",
     {
       "cells.values": [[variableTableMetricNames, variableTableMetrics]],
@@ -895,7 +894,7 @@ const updatePlot = (threshold, cfg, ui) => {
     [traceToIndex.get("variableMetricsTable")],
   );
 
-  plt.relayout("plotDiv", {
+  Plotly.relayout("plotDiv", {
     annotations: annotationUpdates,
   });
 
@@ -1082,7 +1081,7 @@ const initEventListeners = (cfg, ui) => {
 };
 
 const main = () => {
-  if (!plt) {
+  if (!Plotly) {
     document.querySelector("#cdn-fail").hidden = false;
   }
 

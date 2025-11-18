@@ -1,3 +1,5 @@
+/* global Plotly */
+
 /**
  * Create a Plotly box-plot with per-series colours and an invisible line
  * used to drive unified-hover behaviour.
@@ -131,13 +133,11 @@ const createBoxPlot = (
   Plotly.newPlot(divId, traces, layout, config);
 };
 
-if (!window.Plotly) {
+if (Plotly) {
   document.querySelector("#cdn-fail").hidden = false;
 }
 
-const plotConfig = JSON.parse(
-  document.querySelector("#plot-config").textContent,
-);
+const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
 createBoxPlot(
   plotConfig.dataList,

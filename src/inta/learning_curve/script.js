@@ -1,3 +1,5 @@
+/* global Plotly */
+
 /**
  * Renders a learning-curve plot with a mean line, min/max fill band, and per-fold scatter points.
  * @function createLearningCurve
@@ -119,13 +121,11 @@ const createLearningCurve = (
   Plotly.newPlot("plot", plotTraces, layout, config);
 };
 
-if (!window.Plotly) {
+if (Plotly) {
   document.querySelector("#cdn-fail").hidden = false;
 }
 
-const plotConfig = JSON.parse(
-  document.querySelector("#plot-config").textContent,
-);
+const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
 createLearningCurve(
   plotConfig.trainSizes,

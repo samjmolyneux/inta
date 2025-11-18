@@ -1,3 +1,5 @@
+/* global Plotly */
+
 /**
  * Renders a Plotly histogram from the given scores.
  * @function createHistogram
@@ -130,7 +132,7 @@ const updateBins = (value) => {
   Plotly.restyle("histogram", "xbins.size", [value]);
 };
 
-if (!window.Plotly) {
+if (Plotly) {
   document.querySelector("#cdn-fail").hidden = false;
 }
 
@@ -140,9 +142,7 @@ binSelect.addEventListener("change", (e) => {
 });
 
 const defaultBinSize = 0.005;
-const plotConfig = JSON.parse(
-  document.querySelector("#plot-config").textContent,
-);
+const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
 createHistogram(
   defaultBinSize,
