@@ -409,14 +409,12 @@ const createSelectThresholdPlot = (cfg) => {
   // Top-left negative distribution
   data[traceToIndex.get("TNDistribution")] = TNDistribution;
   data[traceToIndex.get("FPDistribution")] = FPDistribution;
-  data[traceToIndex.get("negDistributionThresholdLine")] =
-    negDistributionThresholdLine;
+  data[traceToIndex.get("negDistributionThresholdLine")] = negDistributionThresholdLine;
 
   // Bottom-left positive distribution
   data[traceToIndex.get("FNDistribution")] = FNDistribution;
   data[traceToIndex.get("TPDistribution")] = TPDistribution;
-  data[traceToIndex.get("PosDistributionThresholdLine")] =
-    posDistributionThresholdLine;
+  data[traceToIndex.get("PosDistributionThresholdLine")] = posDistributionThresholdLine;
 
   // Top-right confusion matrix
   data[traceToIndex.get("ConfusionMatrix")] = confusionMatrix;
@@ -427,10 +425,8 @@ const createSelectThresholdPlot = (cfg) => {
 
   // Bottom-right gains line + threshold lines
   data[traceToIndex.get("gainsCurve")] = gainsCurve;
-  data[traceToIndex.get("gainsVerticalProportionLine")] =
-    gainsVerticalProportionLine;
-  data[traceToIndex.get("gainsHorizontalRecallLine")] =
-    gainsHorizontalRecallLine;
+  data[traceToIndex.get("gainsVerticalProportionLine")] = gainsVerticalProportionLine;
+  data[traceToIndex.get("gainsHorizontalRecallLine")] = gainsHorizontalRecallLine;
 
   //  Row=1 Col=1 => negative distribution   (xaxis='x',   yaxis='y')
   //  Row=1 Col=2 => confusion matrix + table(xaxis='x2',  yaxis='y2')
@@ -733,17 +729,9 @@ const updatePlot = (threshold, cfg, ui) => {
     dp,
   } = cfg;
 
-  const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(
-    xN,
-    yN,
-    threshold,
-  );
+  const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(xN, yN, threshold);
 
-  const { xFN, yFN, xTP, yTP } = splitPositiveTraceByClassification(
-    xP,
-    yP,
-    threshold,
-  );
+  const { xFN, yFN, xTP, yTP } = splitPositiveTraceByClassification(xP, yP, threshold);
 
   // Vertical dashed lines on distributions
   const lineNegX = [threshold, threshold];
@@ -955,9 +943,7 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
   const recallFrac = recallPct / 100;
   const clippedRecallFrac = clip(recallFrac, 0, 1);
 
-  const idx = Math.floor(
-    posScores.length - clippedRecallFrac * posScores.length,
-  );
+  const idx = Math.floor(posScores.length - clippedRecallFrac * posScores.length);
 
   const threshold = idx === posScores.length ? Infinity : posScores[idx];
 
@@ -995,6 +981,18 @@ const handleRevertOnBlur = (event) => {
 };
 
 /**
+ * Builds an input handler for the threshold slider.
+ * @function makeHandleSliderInput
+ * @param {SelectThresholdCfg} cfg - Plot configuration/data.
+ * @param {SelectThresholdUI} ui - UI element references.
+ * @returns {(e: Event) => void} Input handler for the threshold slider.
+ */
+const makeHandleSliderInput = (cfg, ui) => () => {
+  const threshold = ui.thresholdSlider.valueAsNumber;
+  updatePlot(threshold, cfg, ui);
+};
+
+/**
  * Builds a keydown handler for the recall input.
  * On Enter: if valid, updates the plot using the recall %;
  * if out of range, clamps to [0, 100] then updates;
@@ -1013,10 +1011,7 @@ const makeHandleRecallInput = (cfg, ui) => (event) => {
     return;
   }
 
-  if (
-    ui.recallInput.validity.rangeUnderflow ||
-    ui.recallInput.validity.rangeOverflow
-  ) {
+  if (ui.recallInput.validity.rangeUnderflow || ui.recallInput.validity.rangeOverflow) {
     const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
     updatePlotWRecall(recallPct, cfg, ui);
   }
@@ -1053,9 +1048,7 @@ const makeHandleThresholdInput = (cfg, ui) => (event) => {
  * @returns {SelectThresholdCfg} - fully initialised configuration used by plotting/update functions
  */
 const initConfig = () => {
-  const plotConfig = JSON.parse(
-    document.querySelector("#plot-config").textContent,
-  );
+  const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
   // We cannot pass in Infinity via JSON, so set it here
   plotConfig.gainsThresholds[0] = Infinity;
@@ -1109,15 +1102,9 @@ const initUI = () => ({
  * @returns {void}
  */
 const initEventListeners = (cfg, ui) => {
-  ui.thresholdSlider.addEventListener("input", (event) => {
-    const threshold = Number.parseFloat(event.target.value);
-    updatePlot(threshold, cfg, ui);
-  });
+  ui.thresholdSlider.addEventListener("input", makeHandleSliderInput(cfg, ui));
 
-  ui.thresholdInput.addEventListener(
-    "keydown",
-    makeHandleThresholdInput(cfg, ui),
-  );
+  ui.thresholdInput.addEventListener("keydown", makeHandleThresholdInput(cfg, ui));
   ui.thresholdInput.addEventListener("focus", handleFocus);
   ui.thresholdInput.addEventListener("blur", handleRevertOnBlur);
   ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
