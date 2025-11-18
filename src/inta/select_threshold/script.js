@@ -96,7 +96,6 @@ const plt = globalThis.Plotly;
 /**
  * Binary search to find smallest array index i s.t. threshold <= arr[i].
  * If all elements in arr are < threshold, returns arr.length.
- * @function findSplitIndex
  * @param {number[]} arr - Sorted array to search
  * @param {number} threshold - Threshold value
  * @returns {number} - Array index or arr.length
@@ -117,10 +116,7 @@ const findSplitIndex = (arr, threshold) => {
 
 /**
  * Computes common binary classification metrics at a given decision threshold.
- *
- * Prediction rule: a score is predicted **positive** if `score >= threshold`,
- * otherwise **negative**. Arrays are expected to be **sorted ascending**.
- * @function computeClassificationMetrics
+ * A score is predicted **positive** if `score >= threshold`,
  * @param {number} threshold - Classification decision threshold.
  * @param {number[]} posScores - Scores for positive class (sorted ascending).
  * @param {number[]} negScores - Scores for negative class (sorted ascending).
@@ -165,8 +161,7 @@ const computeClassificationMetrics = (threshold, posScores, negScores) => {
 /**
  * Create the initial select-threshold Plotly figure with empty/updateable traces and layout.
  * We will fill the data with `updatePlot()` calls.
- * @function createSelectThresholdPlot
- * @param {SelectThresholdCfg} cfg - plotting configuration and indices
+ * @param {SelectThresholdCfg} cfg - Plot config data
  * @returns {void}
  */
 const createSelectThresholdPlot = (cfg) => {
@@ -526,7 +521,6 @@ const createSelectThresholdPlot = (cfg) => {
 
 /**
  * Split negative-density trace into TN/FP segments at a threshold.
- * @function splitNegativeTraceByClassification
  * @param {number[]} xN - negative density x values
  * @param {number[]} yN - negative density y values
  * @param {number} threshold - decision threshold
@@ -565,7 +559,6 @@ const splitNegativeTraceByClassification = (xN, yN, threshold) => {
 
 /**
  * Split positive-density trace into FN/TP segments at a threshold.
- * @function splitPositiveTraceByClassification
  * @param {number[]} xP - positive density x values
  * @param {number[]} yP - positive density y values
  * @param {number} threshold - decision threshold
@@ -602,10 +595,8 @@ const splitPositiveTraceByClassification = (xP, yP, threshold) => {
   };
 };
 
-// TODO: Should separate updateInputElements from updatePlot for better modularity
 /**
- * Update UI inputs/displays to reflect the current threshold and metrics.
- * @function updateInputElements
+ * Update UI inputs/displays to reflect the current threshold.
  * @param {SelectThresholdUI} ui - UI elements
  * @param {number} threshold - current decision threshold
  * @param {ClassificationMetrics} metrics - computed metrics at threshold
@@ -623,8 +614,7 @@ const updateInputElements = (ui, threshold, metrics, dp) => {
 };
 
 /**
- * Determine visibility of distribution annotations based on threshold position within score range.
- * @function distributionsAnnotationVisibility
+ * Determine visibility of distribution annotations based on threshold.
  * @param {number} threshold - decision threshold
  * @param {number} minScore - minimum score in dataset
  * @param {number} scoreRange - maxScore - minScore
@@ -657,7 +647,6 @@ const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
 
 /**
  * Build variable-metrics table values (labels and formatted percentages).
- * @function computeVariableTableTraceData
  * @param {ClassificationMetrics} metrics - computed metrics at threshold
  * @param {number} dp - decimal places for formatting
  * @returns {VariableTableTraceData} - names and formatted values
@@ -683,7 +672,6 @@ const computeVariableTableTraceData = (metrics, dp) => {
 
 /**
  * Compute gains-plot guide lines and proportion examined at a threshold.
- * @function computeGainsHozVerLines
  * @param {number} threshold - decision threshold
  * @param {ClassificationMetrics} metrics - metrics at threshold (for recall/TPR)
  * @param {number[]} posScores - positive-class scores (sorted ascending)
@@ -711,9 +699,8 @@ const computeGainsHozVerLines = (threshold, metrics, posScores, negScores) => {
 
 /**
  * Recompute traces, annotations, tables, and UI and apply to figure.
- * @function updatePlot
  * @param {number} threshold - decision threshold
- * @param {SelectThresholdCfg} cfg - plotting configuration and data
+ * @param {SelectThresholdCfg} cfg - plot config and data
  * @param {SelectThresholdUI} ui - UI elements
  * @returns {void}
  */
@@ -916,8 +903,6 @@ const updatePlot = (threshold, cfg, ui) => {
 };
 
 /**
- * Clamp a number to the inclusive range `[min, max]`.
- * @function clip
  * @param {number} val - The value to clamp.
  * @param {number} min - Inclusive lower bound.
  * @param {number} max - Inclusive upper bound.
@@ -934,10 +919,9 @@ const clip = (val, min, max) => {
 
 /**
  * Creates threshold from recallPct and calls updatePlot.
- * Calculates threshold in O(1) because posScores is sorted, therefore the recall
- * equals the proportion of posScores above the threshold.
+ * posScores is sorted, so recall is proportion of posScores above the threshold.
  * @param {number} recallPct - desired recall as a percentage
- * @param {SelectThresholdCfg} cfg - select-threshold configuration
+ * @param {SelectThresholdCfg} cfg - plot config and data
  * @param {SelectThresholdUI} ui - UI elements
  */
 const updatePlotWRecall = (recallPct, cfg, ui) => {
@@ -955,7 +939,6 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
 
 /**
  * Temporarily clear an input’s value on focus.
- * @function handleFocus
  * @param {FocusEvent} e - focus event
  * @returns {void}
  */
@@ -969,7 +952,6 @@ const handleFocus = (e) => {
 
 /**
  * Restore an input’s original value on blur.
- * @function handleRevertOnBlur
  * @param {FocusEvent} e - the blur event
  * @returns {void}
  */
@@ -980,22 +962,18 @@ const handleRevertOnBlur = (e) => {
 
 /**
  * Builds an input handler for the threshold slider.
- * @function makeHandleSliderInput
  * @param {SelectThresholdCfg} cfg - Plot configuration/data.
- * @param {SelectThresholdUI} ui - UI element references.
+ * @param {SelectThresholdUI} ui - UI elements.
  * @returns {(e: Event) => void} Input handler for the threshold slider.
  */
 const makeHandleSliderInput = (cfg, ui) => () => {
   const threshold = ui.thresholdSlider.valueAsNumber;
+  // UI is updated within updatePlot
   updatePlot(threshold, cfg, ui);
 };
 
 /**
  * Builds a keydown handler for the recall input.
- * On Enter: if valid, updates the plot using the recall %;
- * if out of range, clamps to [0, 100] then updates;
- * otherwise reverts to the last committed value.
- * @function makeHandleRecallInput
  * @param {SelectThresholdCfg} cfg - Plot configuration/data.
  * @param {SelectThresholdUI} ui - UI element references.
  * @returns {(e: KeyboardEvent) => void} Keydown handler for the recall input.
@@ -1005,12 +983,14 @@ const makeHandleRecallInput = (cfg, ui) => (e) => {
 
   if (ui.recallInput.checkValidity()) {
     const recallPct = ui.recallInput.valueAsNumber;
+    // UI is updated within updatePlot
     updatePlotWRecall(recallPct, cfg, ui);
     return;
   }
 
   if (ui.recallInput.validity.rangeUnderflow || ui.recallInput.validity.rangeOverflow) {
     const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
+    // UI is updated within updatePlot
     updatePlotWRecall(recallPct, cfg, ui);
   }
 
@@ -1019,10 +999,6 @@ const makeHandleRecallInput = (cfg, ui) => (e) => {
 
 /**
  * Builds a keydown handler for the threshold input.
- * On Enter: if valid, parses the threshold and updates the plot;
- * otherwise reverts to the last committed value.
- * Requires `ui.thresholdInput.dataset.committedValue` to be set elsewhere.
- * @function makeHandleThresholdInput
  * @param {SelectThresholdCfg} cfg - Plot configuration/data.
  * @param {SelectThresholdUI} ui - UI element references.
  * @returns {(e: KeyboardEvent) => void} Keydown handler for the threshold input.
@@ -1031,7 +1007,8 @@ const makeHandleThresholdInput = (cfg, ui) => (e) => {
   if (e.key !== "Enter") return;
 
   if (ui.thresholdInput.checkValidity()) {
-    const threshold = Number.parseFloat(e.target.value);
+    const threshold = ui.thresholdInput.valueAsNumber;
+    // UI is updated within updatePlot
     updatePlot(threshold, cfg, ui);
     return;
   }
@@ -1041,9 +1018,7 @@ const makeHandleThresholdInput = (cfg, ui) => (e) => {
 
 /**
  * Initialise and return the select-threshold plot configuration.
- * Loads JSON from #plot-config, amends sentinel thresholds, builds the trace index, and sets dp.
- * @function initConfig
- * @returns {SelectThresholdCfg} - fully initialised configuration used by plotting/update functions
+ * @returns {SelectThresholdCfg} - Plot config and data
  */
 const initConfig = () => {
   const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
@@ -1076,9 +1051,8 @@ const initConfig = () => {
 };
 
 /**
- * Resolve and return the UI elements used by the select-threshold plot.
- * @function initUI
- * @returns {SelectThresholdUI} - object containing references to required inputs and display nodes
+ * Resolve and return the UI elements.
+ * @returns {SelectThresholdUI} - resolved UI elements
  */
 const initUI = () => ({
   recallInput: document.querySelector("#recallInput"),
@@ -1089,13 +1063,7 @@ const initUI = () => ({
 
 /**
  * Attach all event handlers for the select-threshold widget.
- * - Recall input: on Enter, maps recall (%) to a threshold.
- * - Threshold slider: on input, updates the plot at the new threshold.
- * - Threshold input: on Enter, parses number and updates the plot.
- * - Text inputs: on focus/blur, temporarily clear and restore original values for easier editing.
- * Handlers call `updatePlot(threshold, cfg, ui)` to keep Plotly and UI elements in sync.
- * @function initEventListeners
- * @param {SelectThresholdCfg} cfg - select-threshold configuration
+ * @param {SelectThresholdCfg} cfg - Plot configuration/data
  * @param {SelectThresholdUI} ui - resolved UI elements
  * @returns {void}
  */
