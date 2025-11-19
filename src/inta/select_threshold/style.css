@@ -44,3 +44,30 @@ label[for="recallInput"] {
   width: 8em;
   text-align: left;
 }
+
+/* #thresholdSlider {
+  cursor: pointer;
+}
+
+#thresholdSlider:hover {
+  cursor: pointer;
+}
+
+/* Full-page loading overlay for the plot */
+#plot-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 1000;
+  font-size: 1rem;
+}
+
+/* HTML: <div class="loader"></div> */
+
+/* Make [hidden] elements actually disappear */
+[hidden] {
+  display: none !important;
+}
