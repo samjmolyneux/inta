@@ -4,7 +4,7 @@
   <div id="plotDiv"></div>
 
   <div id="select-threshold-controls">
-    <div style="font-size: 1em;">Threshold: <span id="thresholdValue">0.5</span></div>
+    <div id="threshold-display">Threshold: <span id="thresholdValue">0.5</span></div>
 
     <input
       type="range"
@@ -15,26 +15,19 @@
       value="{{ slider_default }}"
     />
 
-    <div style="display: flex; gap: 0.5em;">
-      <label for="thresholdInput" style="font-size: 0.875em;"> Set Threshold: </label>
-      <input
-        type="number"
-        id="thresholdInput"
-        step="any"
-        style="width: 8em; text-align: left;"
-        inputmode="decimal"
-      />
+    <div class="threshold-row">
+      <label for="thresholdInput"> Set Threshold: </label>
+      <input type="number" id="thresholdInput" step="any" inputmode="decimal" />
     </div>
 
-    <div style="display: flex; gap: 0.5em;">
-      <label for="recallInput" style="font-size: 0.875em;">Set Recall:</label>
+    <div class="threshold-row">
+      <label for="recallInput">Set Recall:</label>
       <input
         type="number"
         id="recallInput"
         step="any"
         min="0"
         max="100"
-        style="width: 8em; text-align: left;"
         inputmode="decimal"
       />
     </div>
