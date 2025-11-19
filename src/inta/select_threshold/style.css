@@ -7,3 +7,37 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+#plotDiv {
+  width: 95vw;
+  height: 80vh;
+  margin-top: 4vh;
+}
+
+#select-threshold-controls {
+  margin-top: 0; /* was 0em */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+#thresholdSlider {
+  width: 40%;
+}
+
+/* Not found this one so far (Up to here) */
+.threshold-row {
+  display: flex;
+  gap: 0.5em;
+}
+
+label[for="thresholdInput"],
+label[for="recallInput"] {
+  font-size: 0.875em;
+}
+
+#thresholdInput,
+#recallInput {
+  width: 8em;
+  text-align: left;
+}
