@@ -1,4 +1,6 @@
 /* global Plotly */
+// TODO: Move over to using flexbox with two different plots for the layout.
+// TODO: Need a signal of wether the inputs are valid and or not in valid range.
 
 /**
  * @typedef {object} ClassificationMetrics
@@ -1083,7 +1085,11 @@ const initEventListeners = (cfg, ui) => {
 const main = () => {
   if (!Plotly) {
     document.querySelector("#cdn-fail").hidden = false;
+    return;
   }
+
+  const loader = document.querySelector("#plot-loading");
+  loader.hidden = false;
 
   const cfg = initConfig();
   const ui = initUI();
@@ -1092,6 +1098,8 @@ const main = () => {
 
   createSelectThresholdPlot(cfg);
   updatePlot(initThreshold, cfg, ui);
+
+  loader.hidden = true;
 };
 
 main();
