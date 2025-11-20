@@ -133,20 +133,25 @@ const createBoxPlot = (
   Plotly.newPlot(divId, traces, layout, config);
 };
 
-if (Plotly) {
-  document.querySelector("#cdn-fail").hidden = false;
-}
+const main = () => {
+  if (!("Plotly" in globalThis)) {
+    document.querySelector("#cdn-fail").hidden = false;
+    return;
+  }
 
-const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
+  const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
-createBoxPlot(
-  plotConfig.dataList,
-  plotConfig.nameList,
-  plotConfig.title,
-  plotConfig.xAxisTitle,
-  plotConfig.yAxisTitle,
-  "box-plot-div",
-  plotConfig.invisibleX,
-  plotConfig.invisibleY,
-  plotConfig.imageFilename,
-);
+  createBoxPlot(
+    plotConfig.dataList,
+    plotConfig.nameList,
+    plotConfig.title,
+    plotConfig.xAxisTitle,
+    plotConfig.yAxisTitle,
+    "box-plot-div",
+    plotConfig.invisibleX,
+    plotConfig.invisibleY,
+    plotConfig.imageFilename,
+  );
+};
+
+main();
