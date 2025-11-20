@@ -132,31 +132,36 @@ const updateBins = (value) => {
   Plotly.restyle("histogram", "xbins.size", [value]);
 };
 
-if (Plotly) {
-  document.querySelector("#cdn-fail").hidden = false;
-}
+const main = () => {
+  if (!("Plotly" in globalThis)) {
+    document.querySelector("#cdn-fail").hidden = false;
+    return;
+  }
 
-const binSelect = document.querySelector("#binSelect");
-binSelect.addEventListener("change", (e) => {
-  updateBins(Number(e.target.value));
-});
+  const binSelect = document.querySelector("#binSelect");
+  binSelect.addEventListener("change", (e) => {
+    updateBins(Number(e.target.value));
+  });
 
-const defaultBinSize = 0.005;
-const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
+  const defaultBinSize = 0.005;
+  const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
-createHistogram(
-  defaultBinSize,
-  plotConfig.scores,
-  plotConfig.title,
-  plotConfig.xAxisTitle,
-  plotConfig.yAxisTitle,
-  plotConfig.colour,
-  plotConfig.imageFilename,
-);
-createStatsTable(
-  plotConfig.mean,
-  plotConfig.median,
-  plotConfig.stdDev,
-  plotConfig.minVal,
-  plotConfig.maxVal,
-);
+  createHistogram(
+    defaultBinSize,
+    plotConfig.scores,
+    plotConfig.title,
+    plotConfig.xAxisTitle,
+    plotConfig.yAxisTitle,
+    plotConfig.colour,
+    plotConfig.imageFilename,
+  );
+  createStatsTable(
+    plotConfig.mean,
+    plotConfig.median,
+    plotConfig.stdDev,
+    plotConfig.minVal,
+    plotConfig.maxVal,
+  );
+};
+
+main();
