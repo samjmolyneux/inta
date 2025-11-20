@@ -96,8 +96,11 @@ const updateBins = (value) => {
 };
 
 const main = () => {
+  const loader = document.querySelector("#plot-loading");
+
   if (!("Plotly" in globalThis)) {
     document.querySelector("#cdn-fail").hidden = false;
+    loader.hidden = true;
     return;
   }
   const binSelect = document.querySelector("#binSelect");
@@ -117,6 +120,8 @@ const main = () => {
     plotConfig.yAxisTitle,
     plotConfig.imageFilename,
   );
+
+  loader.hidden = true;
 };
 
 main();

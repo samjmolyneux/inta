@@ -1,6 +1,7 @@
 /* global Plotly */
 // TODO: Move over to using flexbox with two different plots for the layout.
 // TODO: Need a signal of wether the inputs are valid and or not in valid range.
+// TODO: Check that the no js message is shown for all
 
 /**
  * @typedef {object} ClassificationMetrics

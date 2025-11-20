@@ -134,8 +134,11 @@ const createBoxPlot = (
 };
 
 const main = () => {
+  const loader = document.querySelector("#plot-loading");
+
   if (!("Plotly" in globalThis)) {
     document.querySelector("#cdn-fail").hidden = false;
+    loader.hidden = true;
     return;
   }
 
@@ -152,6 +155,8 @@ const main = () => {
     plotConfig.invisibleY,
     plotConfig.imageFilename,
   );
+
+  loader.hidden = true;
 };
 
 main();

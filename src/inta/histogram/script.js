@@ -133,8 +133,11 @@ const updateBins = (value) => {
 };
 
 const main = () => {
+  const loader = document.querySelector("#plot-loading");
+
   if (!("Plotly" in globalThis)) {
     document.querySelector("#cdn-fail").hidden = false;
+    loader.hidden = true;
     return;
   }
 
@@ -162,6 +165,8 @@ const main = () => {
     plotConfig.minVal,
     plotConfig.maxVal,
   );
+
+  loader.hidden = true;
 };
 
 main();

@@ -122,8 +122,11 @@ const createLearningCurve = (
 };
 
 const main = () => {
+  const loader = document.querySelector("#plot-loading");
+
   if (!("Plotly" in globalThis)) {
     document.querySelector("#cdn-fail").hidden = false;
+    loader.hidden = true;
     return;
   }
 
@@ -143,6 +146,8 @@ const main = () => {
     plotConfig.markerColour,
     plotConfig.imageFilename,
   );
+
+  loader.hidden = true;
 };
 
 main();
