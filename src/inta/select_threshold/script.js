@@ -1083,13 +1083,13 @@ const initEventListeners = (cfg, ui) => {
 };
 
 const main = () => {
-  if (!Plotly) {
+  const loader = document.querySelector("#plot-loading");
+
+  if (!("Plotly" in globalThis)) {
     document.querySelector("#cdn-fail").hidden = false;
+    loader.hidden = true;
     return;
   }
-
-  const loader = document.querySelector("#plot-loading");
-  loader.hidden = false;
 
   const cfg = initConfig();
   const ui = initUI();
