@@ -121,23 +121,28 @@ const createLearningCurve = (
   Plotly.newPlot("plot", plotTraces, layout, config);
 };
 
-if (Plotly) {
-  document.querySelector("#cdn-fail").hidden = false;
-}
+const main = () => {
+  if (!("Plotly" in globalThis)) {
+    document.querySelector("#cdn-fail").hidden = false;
+    return;
+  }
 
-const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
+  const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
-createLearningCurve(
-  plotConfig.trainSizes,
-  plotConfig.meanScores,
-  plotConfig.minScores,
-  plotConfig.maxScores,
-  plotConfig.cvScores,
-  plotConfig.title,
-  plotConfig.xAxisTitle,
-  plotConfig.yAxisTitle,
-  plotConfig.curveName,
-  plotConfig.fillColour,
-  plotConfig.markerColour,
-  plotConfig.imageFilename,
-);
+  createLearningCurve(
+    plotConfig.trainSizes,
+    plotConfig.meanScores,
+    plotConfig.minScores,
+    plotConfig.maxScores,
+    plotConfig.cvScores,
+    plotConfig.title,
+    plotConfig.xAxisTitle,
+    plotConfig.yAxisTitle,
+    plotConfig.curveName,
+    plotConfig.fillColour,
+    plotConfig.markerColour,
+    plotConfig.imageFilename,
+  );
+};
+
+main();
