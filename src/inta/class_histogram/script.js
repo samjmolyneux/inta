@@ -95,24 +95,28 @@ const updateBins = (value) => {
   Plotly.restyle("histogram", "xbins.size", [value]);
 };
 
-if (Plotly) {
-  document.querySelector("#cdn-fail").hidden = false;
-}
+const main = () => {
+  if (!("Plotly" in globalThis)) {
+    document.querySelector("#cdn-fail").hidden = false;
+    return;
+  }
+  const binSelect = document.querySelector("#binSelect");
+  binSelect.addEventListener("change", (e) => {
+    updateBins(Number(e.target.value));
+  });
 
-const binSelect = document.querySelector("#binSelect");
-binSelect.addEventListener("change", (e) => {
-  updateBins(Number(e.target.value));
-});
+  const defaultBinSize = 0.1;
+  const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
-const defaultBinSize = 0.1;
-const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
+  createClassHistogram(
+    defaultBinSize,
+    plotConfig.positiveScores,
+    plotConfig.negativeScores,
+    plotConfig.title,
+    plotConfig.xAxisTitle,
+    plotConfig.yAxisTitle,
+    plotConfig.imageFilename,
+  );
+};
 
-createClassHistogram(
-  defaultBinSize,
-  plotConfig.positiveScores,
-  plotConfig.negativeScores,
-  plotConfig.title,
-  plotConfig.xAxisTitle,
-  plotConfig.yAxisTitle,
-  plotConfig.imageFilename,
-);
+main();
