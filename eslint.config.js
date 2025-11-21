@@ -46,6 +46,7 @@ export default defineConfig([
       "no-shadow": ["error", { builtinGlobals: true, hoist: "all" }],
       "no-ternary": "off",
       "sort-keys": "off",
+      curly: ["error", "multi-line"], //TODO: what's going on here?
       "no-magic-numbers": ["warn"],
       "perfectionist/sort-objects": "off",
       "perfectionist/sort-imports": "off",
