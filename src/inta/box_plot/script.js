@@ -96,6 +96,11 @@ const createBoxPlot = (
       autorange: false,
       zeroline: false,
       type: "category",
+      title: {
+        text: xAxisTitle,
+        standoff: 20,
+        font: { size: 20 },
+      },
     },
     yaxis: {
       title: {
