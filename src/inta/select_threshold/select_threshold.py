@@ -38,6 +38,7 @@ def select_threshold_plot(
         "slider_min": min_score - 0.01 * (max_score - min_score),
         "slider_max": max_score + 0.01 * (max_score - min_score),
         "slider_default": (max_score - min_score) / 2,
+        "slider_step": (max_score - min_score) / 10000,
         "plot_config": {
             "xN": x_N.tolist(),
             "yN": y_N.tolist(),
