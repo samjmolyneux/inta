@@ -19,12 +19,7 @@ body {
   aspect-ratio: 3/2;
 }
 
-#binSelect {
-  font-size: 0.8rem;
-  /* //padding: 0.3em; */
-}
-
-#bin-container {
+#histogram-controls {
   width: 80%; /* Same width as the histogram */
   max-width: 50rem;
   text-align: left; /* Aligns text to the left */

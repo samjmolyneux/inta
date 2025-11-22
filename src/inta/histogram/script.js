@@ -131,6 +131,51 @@ const createStatsTable = (mean, median, stdDev, minVal, maxVal) => {
 const updateBins = (value) => {
   Plotly.restyle("histogram", "xbins.size", [value]);
 };
+/**
+ * Temporarily clear an input’s value on focus.
+ * @param {FocusEvent} e - focus event
+ * @returns {void}
+ */
+const handleFocus = (e) => {
+  const inputElement = e.target;
+
+  if (inputElement.value === inputElement.dataset.committedValue) {
+    inputElement.value = "";
+  }
+};
+
+/**
+ * Restore an input’s original value on blur.
+ * @param {FocusEvent} e - the blur event
+ * @returns {void}
+ */
+const handleRevertOnBlur = (e) => {
+  const inputElement = e.target;
+  inputElement.value = inputElement.dataset.committedValue;
+};
+
+const handleBinWidthInput = (e) => {
+  if (e.key !== "Enter") return;
+
+  const binWidthInput = e.target;
+
+  if (binWidthInput.checkValidity()) {
+    const binWidth = binWidthInput.valueAsNumber;
+    // UI is updated within updatePlot
+    updateBins(binWidth);
+    binWidthInput.dataset.committedValue = binWidthInput.value;
+    return;
+  }
+
+  //TODO: add an upper and lower bound
+  // if (binWidthInput.validity.rangeUnderflow || binWidthInput.validity.rangeOverflow) {
+  //   const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
+  //   // UI is updated within updatePlot
+  //   updatePlotWRecall(recallPct, cfg, ui);
+  // }
+
+  binWidthInput.value = binWidthInput.dataset.committedValue;
+};
 
 const main = () => {
   const loader = document.querySelector("#plot-loading");
@@ -140,12 +185,15 @@ const main = () => {
     loader.hidden = true;
     return;
   }
+  const binWidthInput = document.querySelector("#bin-width-input");
 
-  const binSelect = document.querySelector("#binSelect");
-  binSelect.addEventListener("change", (e) => {
-    updateBins(Number(e.target.value));
-  });
+  binWidthInput.addEventListener("keydown", handleBinWidthInput);
 
+  binWidthInput.addEventListener("focus", handleFocus);
+  binWidthInput.addEventListener("blur", handleRevertOnBlur);
+  binWidthInput.dataset.committedValue = binWidthInput.value;
+
+  // TODO: Automatically determine a good default bin size based on the data
   const defaultBinSize = 0.005;
   const plotConfig = JSON.parse(document.querySelector("#plot-config").textContent);
 
