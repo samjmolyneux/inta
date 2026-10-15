@@ -103,7 +103,7 @@ const main = () => {
     loader.hidden = true;
     return;
   }
-  const binSelect = document.querySelector("#binSelect");
+  const binSelect = document.querySelector("#bin-select");
   binSelect.addEventListener("change", (e) => {
     updateBins(Number(e.target.value));
   });

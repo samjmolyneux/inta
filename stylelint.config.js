@@ -8,6 +8,14 @@ export default {
   ],
   extends: ["stylelint-config-standard", "stylelint-config-clean-order"],
   rules: {
+    // Separate comment groups without splitting consecutive commented-out lines.
+    "comment-empty-line-before": [
+      "always",
+      {
+        except: ["first-nested"],
+        ignore: ["after-comment", "stylelint-commands"],
+      },
+    ],
     "plugin/no-unsupported-browser-features": true,
     "defensive-css/no-accidental-hover": true,
     "defensive-css/no-mixed-vendor-prefixes": true,

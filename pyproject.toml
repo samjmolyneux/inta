@@ -70,7 +70,14 @@ disable_error_code = [
 ]
 enable_error_code = ["ignore-without-code"]
 strict = true
+# Allow calls into the untyped vendored module.
+untyped_calls_exclude = ["inta.shap_plots.shap_colors._colorconv"]
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# Preserve the vendored scikit-image colour-conversion code.
+ignore_errors = true
+module = "inta.shap_plots.shap_colors._colorconv"
 
 [tool.pytest.ini_options]
 addopts = [

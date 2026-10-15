@@ -538,7 +538,7 @@ const createSelectThresholdPlot = (cfg) => {
     },
   };
 
-  Plotly.newPlot("plotDiv", data, layout, plotlySettings);
+  Plotly.newPlot("plot-div", data, layout, plotlySettings);
 };
 
 /**
@@ -916,17 +916,17 @@ const updatePlot = (threshold, cfg, ui) => {
     yArr.push(update.y);
   }
 
-  Plotly.restyle("plotDiv", { x: xArr, y: yArr }, indices);
+  Plotly.restyle("plot-div", { x: xArr, y: yArr }, indices);
 
   Plotly.restyle(
-    "plotDiv",
+    "plot-div",
     {
       "cells.values": [[variableTableMetricNames, variableTableMetrics]],
     },
     [traceToIndex.get("variableMetricsTable")],
   );
 
-  Plotly.relayout("plotDiv", {
+  Plotly.relayout("plot-div", {
     annotations: annotationUpdates,
   });
 
@@ -1098,10 +1098,10 @@ const initConfig = () => {
  */
 const initUI = () => {
   return {
-    recallInput: document.querySelector("#recallInput"),
-    thresholdInput: document.querySelector("#thresholdInput"),
-    thresholdSlider: document.querySelector("#thresholdSlider"),
-    thresholdDisplay: document.querySelector("#thresholdValue"),
+    recallInput: document.querySelector("#recall-input"),
+    thresholdInput: document.querySelector("#threshold-input"),
+    thresholdSlider: document.querySelector("#threshold-slider"),
+    thresholdDisplay: document.querySelector("#threshold-value"),
   };
 };
 

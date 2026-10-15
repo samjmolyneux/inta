@@ -29,8 +29,11 @@ body {
   position: absolute; /* Overlay on top of #histogram */
   bottom: 10%; /* Adjust spacing from the top */
   right: 1%; /* Adjust spacing from the right */
+
   background-color: #f8f8f8;
+
   border-radius: 0.5rem;
+
   font-size: 0.7rem;
 }
 
@@ -43,12 +46,16 @@ body {
 #tips-container li {
   padding: 0.3rem 0;
 }
-#binSelect {
+
+#bin-select {
   font-size: 0.8rem;
+
   /* padding: 0.3em; */
 }
+
 #bin-container {
   width: 80%; /* Same width as the histogram */
+
   /* max-width: 50rem; */
   text-align: left; /* Aligns text to the left */
   margin-left: auto; /* Centers container but keeps text left-aligned */

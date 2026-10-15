@@ -1,14 +1,14 @@
 {% extends "bases/base.html" %}
 
 {% block main %}
-  <div id="plotDiv"></div>
+  <div id="plot-div"></div>
 
   <div id="select-threshold-controls">
-    <div id="threshold-display">Threshold: <span id="thresholdValue">0.5</span></div>
+    <div id="threshold-display">Threshold: <span id="threshold-value">0.5</span></div>
 
     <input
       type="range"
-      id="thresholdSlider"
+      id="threshold-slider"
       min="{{ slider_min }}"
       max="{{ slider_max }}"
       step="{{ slider_step }}"
@@ -16,15 +16,15 @@
     />
 
     <div class="threshold-row">
-      <label for="thresholdInput"> Set Threshold: </label>
-      <input type="number" id="thresholdInput" step="any" inputmode="decimal" />
+      <label for="threshold-input"> Set Threshold: </label>
+      <input type="number" id="threshold-input" step="any" inputmode="decimal" />
     </div>
 
     <div class="threshold-row">
-      <label for="recallInput">Set Recall:</label>
+      <label for="recall-input">Set Recall:</label>
       <input
         type="number"
-        id="recallInput"
+        id="recall-input"
         step="any"
         min="0"
         max="100"
