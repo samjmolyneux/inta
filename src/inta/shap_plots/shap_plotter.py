@@ -25,6 +25,10 @@ if TYPE_CHECKING:
     from matplotlib.colors import LinearSegmentedColormap
     from numpy.typing import NDArray
 
+MAX_SVC_EXPLANATION_SAMPLES = 1_000
+MAX_DECISION_PLOT_SAMPLES = 1_000
+MAX_SHAP_DATASET_SAMPLES = 2_500
+
 
 model_class_to_name = {
     lgb.basic.Booster: "lgbmclassifier",
@@ -446,8 +450,14 @@ class ShapPlotter:
         self.shap_values: sp.csr_matrix
         self.expected_value: float
 
-        if isinstance(self.model, SVC) and self.X_test.shape[0] > 1000:
-            msg = "SVC cannot be explained with more than 1000 samples."
+        if (
+            isinstance(self.model, SVC)
+            and self.X_test.shape[0] > MAX_SVC_EXPLANATION_SAMPLES
+        ):
+            msg = (
+                "SVC cannot be explained with more than "
+                f"{MAX_SVC_EXPLANATION_SAMPLES} samples."
+            )
             raise ValueError(msg)
 
         # Setup the explantation for plotting
@@ -535,12 +545,17 @@ class ShapPlotter:
         log_scale : bool, optional
             Wether to use a log scale for the x-axis, by default False
 
+        data_indices : list[int] | None, optional
+            Row indices in X_test to include in the plot, in the supplied order.
+            At most 1000 indices may be supplied. If None, use the first 1000 rows
+            or all rows if fewer are available.
+
         """
-        if data_indices is not None and len(data_indices) > 1000:
-            msg = "Data indices should be less than 1000."
+        if data_indices is not None and len(data_indices) > MAX_DECISION_PLOT_SAMPLES:
+            msg = f"At most {MAX_DECISION_PLOT_SAMPLES} data indices may be supplied."
             raise ValueError(msg)
         if data_indices is None:
-            data_indices = range(min(self.X_test.shape[0], 1000))
+            data_indices = range(min(self.X_test.shape[0], MAX_DECISION_PLOT_SAMPLES))
 
         return DecisionPlot(
             self.expected_value,
@@ -721,9 +736,12 @@ def check_size_xtest_not_too_large(dataset: sp.csr_matrix) -> None:
     if len(dataset.shape) != 2:
         msg = f"Dataset must have two dimensions, but got {dataset.shape}."
         raise ValueError(msg)
-    if dataset.shape[0] > 2500:
-        msg = f"""We have temporarily limited the size of the dataset to 2500 samples.
-        You have used {dataset.shape[0]} samples."""
+    if dataset.shape[0] > MAX_SHAP_DATASET_SAMPLES:
+        msg = (
+            "We have temporarily limited the size of the dataset to "
+            f"{MAX_SHAP_DATASET_SAMPLES} samples.\n"
+            f"        You have used {dataset.shape[0]} samples."
+        )
         raise MemoryError(msg)
 
 

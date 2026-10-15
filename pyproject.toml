@@ -78,6 +78,9 @@ addopts = [
 ]
 
 [tool.ruff]
+# Preserve the vendored scikit-image colour-conversion code.
+extend-exclude = ["src/inta/shap_plots/shap_colors/_colorconv.py"]
+force-exclude = true
 show-fixes = true
 
 [tool.ruff.format]
@@ -99,6 +102,7 @@ ignore = [
     "PLR0912",  # Too many branches.
     "PLR0913",  # Too many arguments.
     "PLR0915",  # Too many statements.
+    "PLR2004",  # Use named numeric constants where they improve clarity.
     "RET504",  # Unnecessary assign before return.
     "S106",  # Hardcoded password in call.
     "T201",  # `print` found.
@@ -107,6 +111,10 @@ ignore = [
     "TD003"  # Do not require an issue link in TODO comments.
 ]
 select = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+# Keep commented-out colour definitions as reference.
+"src/inta/shap_plots/shap_colors/_colors.py" = ["ERA001"]
 
 [tool.setuptools]
 include-package-data = true

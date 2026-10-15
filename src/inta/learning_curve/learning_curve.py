@@ -17,6 +17,13 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
     from scipy.sparse import csc_array, csc_matrix, csr_array, csr_matrix
 
+# Five folds retain roughly 80% of each class. A 10% subset therefore needs
+# 1 / (0.8 * 0.1) = 12.5 examples per class, rounded up to 13, to target one.
+# For smaller classes, start at 20%. This is a conservative heuristic for the
+# default five folds; very small classes can still produce invalid subsets.
+MIN_CLASS_COUNT_FOR_TEN_PERCENT_SUBSET = 13
+SMALL_CLASS_MIN_TRAINING_PROPORTION = 0.2
+
 _FeatureMatrixT = TypeVar(
     "_FeatureMatrixT",
     "NDArray[Any]",
@@ -43,11 +50,8 @@ def _learning_curve_for_one_proportion(
     fold_train_sizes = []
 
     for train_idx, val_idx in kf_splits:
-        # Take a proportion of the training folds
-        # Train test split uses ceil of the test proportion, so need 13 of each class
-        # To guarantee that we have one of each class in the 0.1 proportion
-        # We are using the test size to determine the size of the training set
-        # As a result we take the test from train_test_split and use it for training
+        # Use the nominal test subset for training: test_size rounds its size
+        # up, whereas train_size would round down.
         X_train = scores[train_idx]
         y_train = labels[train_idx]
         if proportion < 1.0:
@@ -93,10 +97,12 @@ def get_learning_curve_data(
     kf = StratifiedKFold(n_splits=nfolds, shuffle=True, random_state=42)
     kf_splits = list(kf.split(scores, labels))
 
-    # We are handling the edge case where there are less than 13 of a class.
+    # Skip the smallest subsets when any class is scarce.
     _, counts = np.unique(labels, return_counts=True)
-    if np.any(counts < 13):
-        proportions = [p for p in proportions if p >= 0.2]
+    if np.any(counts < MIN_CLASS_COUNT_FOR_TEN_PERCENT_SUBSET):
+        proportions = [
+            p for p in proportions if p >= SMALL_CLASS_MIN_TRAINING_PROPORTION
+        ]
 
     results = Parallel(n_jobs=n_jobs, backend="loky")(
         delayed(_learning_curve_for_one_proportion)(

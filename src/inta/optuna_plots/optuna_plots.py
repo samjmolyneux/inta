@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, NamedTuple
 import numpy as np
 import optuna
 import plotly
-from optuna.visualization._rank import _get_rank_info
 from scipy.stats import rankdata
 
 if TYPE_CHECKING:

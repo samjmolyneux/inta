@@ -152,10 +152,3 @@ except ImportError:
 # blue_rgba = np.array([30, 136, 229, 255]) / 255
 # blue_rgb = np.array([30, 136, 229]) / 255
 # red_rgb = np.array([255, 13, 87]) / 255
-
-# default_blue_colors = []
-# tmp = blue_rgba.copy()
-# for i in range(10):
-#     default_blue_colors.append(tmp.copy())
-#     if tmp[-1] > 0.1:
-#         tmp[-1] *= 0.7

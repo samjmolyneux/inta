@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
     from numpy.typing import ArrayLike, NDArray
 
+MAX_GAINS_POINTS = 10_000
+
 
 def select_threshold_plot(
     y: ArrayLike,
@@ -23,7 +25,9 @@ def select_threshold_plot(
     savepath: str | PathLike[str] = "select-threshold-plot.html",
     image_savepath: str = "select-threshold-plot",
 ) -> None:
-    assert np.unique(y).tolist() == [0, 1], "y must be binary labels 0 and 1"
+    if np.unique(y).tolist() != [0, 1]:
+        msg = "y must be binary labels 0 and 1"
+        raise ValueError(msg)
 
     order = np.argsort(scores)
     scores = np.array(scores)[order]
@@ -132,9 +136,9 @@ def compute_gains_data(
     pos_recalls = recalls[y_desc == 1]
     pos_thresholds = pos_scores_desc
 
-    # Downsample to at most 10,000 points for performance
-    if len(pos_recalls) > 10000:
-        bin_edges = np.linspace(0.0001, 1, 10_000)
+    # Downsample the interior points before adding the curve endpoints.
+    if len(pos_recalls) > MAX_GAINS_POINTS:
+        bin_edges = np.linspace(1 / MAX_GAINS_POINTS, 1, MAX_GAINS_POINTS)
         insert_indices = np.searchsorted(pos_recalls, bin_edges, side="right")
 
         # The code above gives us each idx we would place bin_edges into pos_recalls
