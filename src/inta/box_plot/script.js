@@ -1,8 +1,7 @@
 /* global Plotly */
 
 /**
- * Create a Plotly box-plot with per-series colours and an invisible line
- * used to drive unified-hover behaviour.
+ * Plot coloured box series with an invisible line for unified hover.
  * @param {number[][]} dataList - Array of series; each inner array is the y-values for one box.
  * @param {string[]} nameList - Display names for each series (same length as `dataList`).
  * @param {string} title - Figure title shown at the top.

@@ -268,7 +268,7 @@ const createSelectThresholdPlot = (cfg) => {
     [0.5, "lightgreen"],
     [0.75, "lightgreen"],
     [0.75, "green"],
-    [1.0, "green"],
+    [1, "green"],
   ];
   const confusionMatrix = {
     z: confusionZ,
@@ -300,7 +300,7 @@ const createSelectThresholdPlot = (cfg) => {
       align: "center",
     },
     domain: {
-      x: [0.78, 1.0],
+      x: [0.78, 1],
       y: [0.475, 0.675],
     },
   };
@@ -323,8 +323,8 @@ const createSelectThresholdPlot = (cfg) => {
       align: "center",
     },
     domain: {
-      x: [0.78, 1.0],
-      y: [0.68, 1.0],
+      x: [0.78, 1],
+      y: [0.68, 1],
     },
   };
 
@@ -338,6 +338,8 @@ const createSelectThresholdPlot = (cfg) => {
     xaxis: "x4",
     yaxis: "y4",
     customdata: gainsThresholds,
+    // Plotly replaces %{...} placeholders when rendering hover text.
+    // eslint-disable-next-line unicorn/no-incorrect-template-string-interpolation
     hovertemplate: `Proportion of Papers Examined: %{x}
       <br>Proportion of Positives Found: %{y:.4f}
       <br>Decision Threshold: %{customdata:.4f}`,
@@ -444,13 +446,13 @@ const createSelectThresholdPlot = (cfg) => {
       roworder: "top to bottom",
     },
     xaxis: {
-      domain: [0.0, 0.45],
+      domain: [0, 0.45],
       anchor: "y",
       range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
       zeroline: false,
     },
     yaxis: {
-      domain: [0.55, 1.0],
+      domain: [0.55, 1],
       anchor: "x",
       title: { text: "Actual Negatives" },
       range: [0, maxDistributionY * 1.1],
@@ -465,7 +467,7 @@ const createSelectThresholdPlot = (cfg) => {
       ticks: "",
     },
     yaxis2: {
-      domain: [0.55, 1.0],
+      domain: [0.55, 1],
       anchor: "x2",
       showgrid: false,
       zeroline: false,
@@ -474,26 +476,26 @@ const createSelectThresholdPlot = (cfg) => {
       ticks: "",
     },
     xaxis3: {
-      domain: [0.0, 0.45],
+      domain: [0, 0.45],
       anchor: "y3",
       title: "Predicted Probability",
       range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
       zeroline: false,
     },
     yaxis3: {
-      domain: [0.0, 0.45],
+      domain: [0, 0.45],
       anchor: "x3",
       title: { text: "Actual Positives" },
       range: [0, maxDistributionY * 1.1],
     },
     xaxis4: {
-      domain: [0.55, 1.0],
+      domain: [0.55, 1],
       anchor: "y4",
       title: { text: "Proportion of Papers Examined" },
       range: [-0.02, 1.02],
     },
     yaxis4: {
-      domain: [0.0, 0.45],
+      domain: [0, 0.45],
       anchor: "x4",
       title: { text: "Recall" },
       range: [-0.02, 1.02],
@@ -542,7 +544,9 @@ const splitNegativeTraceByClassification = (xN, yN, threshold) => {
       xFP: [threshold, ...xN.slice(idxN)],
       yFP: [yInterpolated, ...yN.slice(idxN)],
     };
-  } else if (idxN === xN.length) {
+  }
+
+  if (idxN === xN.length) {
     return {
       xTN: [...xN],
       yTN: [...yN],
@@ -580,7 +584,9 @@ const splitPositiveTraceByClassification = (xP, yP, threshold) => {
       xTP: [threshold, ...xP.slice(idxP)],
       yTP: [yInterpolated, ...yP.slice(idxP)],
     };
-  } else if (idxP === xP.length) {
+  }
+
+  if (idxP === xP.length) {
     return {
       xFN: [...xP],
       yFN: [...yP],
@@ -630,7 +636,9 @@ const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
       distributionFPAnnotationVisible: false,
       distributionTPAnnotationVisible: false,
     };
-  } else if (threshold < minScore + 0.04 * scoreRange) {
+  }
+
+  if (threshold < minScore + 0.04 * scoreRange) {
     return {
       distributionTNAnnotationVisible: false,
       distributionFNAnnotationVisible: false,
@@ -913,7 +921,9 @@ const updatePlot = (threshold, cfg, ui) => {
 const clip = (val, min, max) => {
   if (val < min) {
     return min;
-  } else if (val > max) {
+  }
+
+  if (val > max) {
     return max;
   }
   return val;
@@ -968,10 +978,12 @@ const handleRevertOnBlur = (e) => {
  * @param {SelectThresholdUI} ui - UI elements.
  * @returns {(e: Event) => void} Input handler for the threshold slider.
  */
-const makeHandleSliderInput = (cfg, ui) => () => {
-  const threshold = ui.thresholdSlider.valueAsNumber;
-  // UI is updated within updatePlot
-  updatePlot(threshold, cfg, ui);
+const makeHandleSliderInput = (cfg, ui) => {
+  return () => {
+    const threshold = ui.thresholdSlider.valueAsNumber;
+    // UI is updated within updatePlot
+    updatePlot(threshold, cfg, ui);
+  };
 };
 
 /**
@@ -980,23 +992,28 @@ const makeHandleSliderInput = (cfg, ui) => () => {
  * @param {SelectThresholdUI} ui - UI element references.
  * @returns {(e: KeyboardEvent) => void} Keydown handler for the recall input.
  */
-const makeHandleRecallInput = (cfg, ui) => (e) => {
-  if (e.key !== "Enter") return;
+const makeHandleRecallInput = (cfg, ui) => {
+  return (e) => {
+    if (e.key !== "Enter") return;
 
-  if (ui.recallInput.checkValidity()) {
-    const recallPct = ui.recallInput.valueAsNumber;
-    // UI is updated within updatePlot
-    updatePlotWRecall(recallPct, cfg, ui);
-    return;
-  }
+    if (ui.recallInput.checkValidity()) {
+      const recallPct = ui.recallInput.valueAsNumber;
+      // UI is updated within updatePlot
+      updatePlotWRecall(recallPct, cfg, ui);
+      return;
+    }
 
-  if (ui.recallInput.validity.rangeUnderflow || ui.recallInput.validity.rangeOverflow) {
-    const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
-    // UI is updated within updatePlot
-    updatePlotWRecall(recallPct, cfg, ui);
-  }
+    if (
+      ui.recallInput.validity.rangeUnderflow ||
+      ui.recallInput.validity.rangeOverflow
+    ) {
+      const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
+      // UI is updated within updatePlot
+      updatePlotWRecall(recallPct, cfg, ui);
+    }
 
-  ui.recallInput.value = ui.recallInput.dataset.committedValue;
+    ui.recallInput.value = ui.recallInput.dataset.committedValue;
+  };
 };
 
 /**
@@ -1005,17 +1022,19 @@ const makeHandleRecallInput = (cfg, ui) => (e) => {
  * @param {SelectThresholdUI} ui - UI element references.
  * @returns {(e: KeyboardEvent) => void} Keydown handler for the threshold input.
  */
-const makeHandleThresholdInput = (cfg, ui) => (e) => {
-  if (e.key !== "Enter") return;
+const makeHandleThresholdInput = (cfg, ui) => {
+  return (e) => {
+    if (e.key !== "Enter") return;
 
-  if (ui.thresholdInput.checkValidity()) {
-    const threshold = ui.thresholdInput.valueAsNumber;
-    // UI is updated within updatePlot
-    updatePlot(threshold, cfg, ui);
-    return;
-  }
+    if (ui.thresholdInput.checkValidity()) {
+      const threshold = ui.thresholdInput.valueAsNumber;
+      // UI is updated within updatePlot
+      updatePlot(threshold, cfg, ui);
+      return;
+    }
 
-  ui.thresholdInput.value = ui.thresholdInput.dataset.committedValue;
+    ui.thresholdInput.value = ui.thresholdInput.dataset.committedValue;
+  };
 };
 
 /**
@@ -1056,12 +1075,14 @@ const initConfig = () => {
  * Resolve and return the UI elements.
  * @returns {SelectThresholdUI} - resolved UI elements
  */
-const initUI = () => ({
-  recallInput: document.querySelector("#recallInput"),
-  thresholdInput: document.querySelector("#thresholdInput"),
-  thresholdSlider: document.querySelector("#thresholdSlider"),
-  thresholdDisplay: document.querySelector("#thresholdValue"),
-});
+const initUI = () => {
+  return {
+    recallInput: document.querySelector("#recallInput"),
+    thresholdInput: document.querySelector("#thresholdInput"),
+    thresholdSlider: document.querySelector("#thresholdSlider"),
+    thresholdDisplay: document.querySelector("#thresholdValue"),
+  };
+};
 
 /**
  * Attach all event handlers for the select-threshold widget.

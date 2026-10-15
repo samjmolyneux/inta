@@ -167,7 +167,7 @@ const handleBinWidthInput = (e) => {
     return;
   }
 
-  //TODO: add an upper and lower bound
+  // TODO: add an upper and lower bound
   // if (binWidthInput.validity.rangeUnderflow || binWidthInput.validity.rangeOverflow) {
   //   const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
   //   // UI is updated within updatePlot

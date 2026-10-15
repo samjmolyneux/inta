@@ -37,12 +37,17 @@ export default defineConfig([
       jsdoc.configs["flat/recommended-error"],
     ],
     rules: {
+      // Unicorn controls concise versus explicit arrow returns.
+      "arrow-body-style": "off",
       "init-declarations": "off",
       "max-params": "off",
       "max-lines-per-function": "off",
       "max-lines": "off",
       "max-statements": "off",
       "no-inline-comments": "off",
+      "no-unused-vars": ["error", { args: "all" }],
+      // Capitalize comment openings while preserving continuation lines and code examples.
+      "capitalized-comments": ["error", "always", { ignoreConsecutiveComments: true }],
       "no-shadow": ["error", { builtinGlobals: true, hoist: "all" }],
       "no-ternary": "off",
       "sort-keys": "off",
@@ -58,13 +63,16 @@ export default defineConfig([
       "@stylistic/spaced-comment": ["warn", "always"],
       "@stylistic/operator-linebreak": ["error", "after"],
       "@stylistic/brace-style": ["error", "1tbs", { allowSingleLine: true }],
-      // "@stylistic/arrow-parens": ["error", "always"],
+      // Match Prettier's arrowParens setting.
+      "@stylistic/arrow-parens": ["error", "always"],
       "one-var": "off",
       "id-length": "off",
       "unicorn/name-replacements": "off",
       // Parent directories are Python packages and use snake_case.
       "unicorn/filename-case": ["error", { checkDirectories: false }],
       "unicorn/prefer-ternary": "off",
+      // Keep parameters that clarify a helper's API, even if callers pass the same value.
+      "unicorn/no-unnecessary-parameters": "off",
       // Keep traditional leading asterisks in JSDoc comments.
       "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
     },
