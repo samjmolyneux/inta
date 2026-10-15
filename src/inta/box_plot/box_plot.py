@@ -25,6 +25,27 @@ def box_plot(
     image_filename: str = "box_plot",
     savepath: str | PathLike[str] = "box_plot.html",
 ) -> None:
+    """
+    Save an interactive box plot with one box per numeric group.
+
+    Parameters
+    ----------
+    data_by_box : sequence of array-like or numpy.ndarray
+        Non-empty numeric groups. Each group supplies the values for one box.
+    box_names : sequence of str
+        Labels for the boxes, in the same order as ``data_by_box``.
+    title : str
+        Plot title.
+    xaxis_title : str
+        Label for the horizontal axis.
+    yaxis_title : str
+        Label for the vertical axis.
+    image_filename : str, optional
+        Base filename used when exporting an image from the plot.
+    savepath : str or os.PathLike, optional
+        Destination HTML file. Its parent directory must already exist.
+
+    """
     # Generate the invisible scatter trace to get hoverline
     invisible_y = np.linspace(
         min([min(d) for d in data_by_box]),

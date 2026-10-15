@@ -25,6 +25,32 @@ def histogram_plot(
     bar_colour: str = "rgba(102, 204, 255, 0.7)",
     image_filename: str = "histogram",
 ) -> None:
+    """
+    Save an interactive histogram with descriptive statistics.
+
+    Parameters
+    ----------
+    scores : sequence of float or numpy.ndarray
+        Non-empty, one-dimensional collection of numeric values.
+    savepath : str or os.PathLike
+        Destination HTML file. Its parent directory must already exist.
+    title : str, optional
+        Plot title.
+    xaxis_title : str, optional
+        Label for the value axis.
+    yaxis_title : str, optional
+        Label for the count axis.
+    bar_colour : str, optional
+        CSS colour used for the histogram bars.
+    image_filename : str, optional
+        Base filename used when exporting an image from the plot.
+
+    Notes
+    -----
+    The plot includes the mean, median, population standard deviation, minimum
+    and maximum of the supplied values.
+
+    """
     mean = np.mean(scores)
     median = np.median(scores)
     std_dev = np.std(scores)

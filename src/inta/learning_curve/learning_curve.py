@@ -92,6 +92,54 @@ def get_learning_curve_data(
     proportions: Iterable[float] | None = None,
     n_jobs: int = -1,  # -1 = use all CPU cores
 ) -> tuple[list[np.float64], list[list[float]], list[list[float]]]:
+    """
+    Compute training and validation metrics across stratified learning curves.
+
+    Parameters
+    ----------
+    scores : numpy.ndarray or scipy.sparse CSR or CSC matrix or array
+        Feature data of shape ``(n_samples, n_features)``.
+    labels : numpy.ndarray of shape (n_samples,)
+        Class labels aligned with the rows of ``scores``.
+    train_fn : callable
+        Called as ``train_fn(training_features, training_labels)`` to create a
+        fresh fitted model for each training subset and fold.
+    predict_scores_fn : callable
+        Called as ``predict_scores_fn(model, features)`` to produce predictions
+        in the format expected by ``metric``.
+    metric : callable
+        Called as ``metric(true_labels, predictions)``. Must return one numeric
+        score for each training or validation set.
+    nfolds : int, optional
+        Number of stratified cross-validation folds. Defaults to 5.
+    proportions : iterable of float or None, optional
+        Fractions of each fold's training data to use, in ``(0, 1]``. Defaults
+        to 0.1 through 1.0 in steps of 0.1. Input order is preserved.
+    n_jobs : int, optional
+        Number of Joblib process workers. Defaults to -1 to use all available
+        CPUs; use 1 for sequential execution.
+
+    Returns
+    -------
+    train_sizes : list of numpy.float64
+        Mean training-subset size across folds for each retained proportion.
+    train_curve_data : list of list of float
+        Training metrics, with one list of fold scores per retained proportion.
+    val_curve_data : list of list of float
+        Validation metrics in the same proportion and fold order.
+
+    Notes
+    -----
+    All proportions use the same shuffled folds with random seed 42. Training
+    subsets are also stratified and use that seed.
+
+    If any class has fewer than 13 examples, proportions below 0.2 are removed.
+    At least one proportion must remain. This heuristic is based on the default
+    five folds and does not guarantee valid splits or scores for very small
+    classes. The selected subsets must satisfy the model's and metric's class
+    requirements; ROC AUC, for example, requires both binary classes.
+
+    """
     if proportions is None:
         proportions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
@@ -144,6 +192,54 @@ def learning_curve(
     nfolds: int = 5,
     proportions: Iterable[float] | None = None,
 ) -> None:
+    """
+    Save an interactive learning curve showing validation metrics across folds.
+
+    Parameters
+    ----------
+    scores : numpy.ndarray or scipy.sparse CSR or CSC matrix or array
+        Feature data of shape ``(n_samples, n_features)``.
+    labels : numpy.ndarray of shape (n_samples,)
+        Class labels aligned with the rows of ``scores``.
+    train_fn : callable
+        Called as ``train_fn(training_features, training_labels)`` to create a
+        fresh fitted model for each training subset and fold.
+    predict_scores_fn : callable
+        Called as ``predict_scores_fn(model, features)`` to produce predictions
+        in the format expected by ``metric``.
+    metric : callable
+        Called as ``metric(true_labels, predictions)`` to return one numeric
+        score for each evaluated set.
+    savepath : str or os.PathLike
+        Destination HTML file. Its parent directory must already exist.
+    image_filename : str, optional
+        Base filename used when exporting an image from the plot.
+    title : str, optional
+        Plot title. The default describes AUC; change it for another metric.
+    xaxis_title : str, optional
+        Label for the mean training-subset size axis.
+    yaxis_title : str, optional
+        Label for the validation metric axis. Defaults to ``"AUC Score"``.
+    curve_name : str, optional
+        Legend label for the validation curve. Defaults to ``"Validation AUC"``.
+    fill_color : str, optional
+        CSS colour for the shading between the minimum and maximum fold scores.
+    marker_color : str, optional
+        CSS colour for individual fold-score markers.
+    nfolds : int, optional
+        Number of stratified cross-validation folds. Defaults to 5.
+    proportions : iterable of float or None, optional
+        Fractions of each fold's training data to use. Defaults to 0.1 through
+        1.0 in steps of 0.1. See ``get_learning_curve_data`` for filtering rules
+        and constraints on small classes.
+
+    Notes
+    -----
+    The curve shows the mean validation score across folds. The shaded bounds
+    show the minimum and maximum fold scores, rather than a confidence interval.
+    Metrics other than AUC are supported through the callbacks and plot labels.
+
+    """
     if proportions is None:
         proportions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 

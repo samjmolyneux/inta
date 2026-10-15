@@ -34,6 +34,22 @@ standard_config = {
 
 
 def make_tick_labels_4f(tick_labels: Iterable[str]) -> list[str]:
+    """
+    Format parenthesized decimal values in tick labels to four decimal places.
+
+    Parameters
+    ----------
+    tick_labels : iterable of str
+        Labels optionally containing a decimal number in parentheses. The first
+        matching number in each label supplies its replacement value.
+
+    Returns
+    -------
+    list of str
+        Labels in input order, with matching parenthesized numbers replaced by
+        the formatted value. Labels without a match are unchanged.
+
+    """
     pattern = re.compile(r"\(([-+]?[0-9]*\.?[0-9]+)\)")
 
     formatted = []
@@ -51,6 +67,18 @@ def make_tick_labels_4f(tick_labels: Iterable[str]) -> list[str]:
 
 
 def create_opt_history_html(study: optuna.Study, savepath: str | PathLike[str]) -> None:
+    """
+    Save an Optuna optimisation history plot as interactive HTML.
+
+    Parameters
+    ----------
+    study : optuna.Study
+        Single-objective study whose objective values will be plotted by trial
+        number.
+    savepath : str or os.PathLike
+        Destination HTML file. Its parent directory must already exist.
+
+    """
     fig = optuna.visualization.plot_optimization_history(study)
 
     fig.update_layout(dragmode=False)
@@ -71,6 +99,18 @@ def create_opt_history_html(study: optuna.Study, savepath: str | PathLike[str]) 
 def create_param_importance_html(
     study: optuna.Study, savepath: str | PathLike[str]
 ) -> None:
+    """
+    Save an Optuna parameter importance plot as interactive HTML.
+
+    Parameters
+    ----------
+    study : optuna.Study
+        Single-objective study used by Optuna to estimate parameter importance.
+        It must contain enough completed trials for the importance evaluator.
+    savepath : str or os.PathLike
+        Destination HTML file. Its parent directory must already exist.
+
+    """
     fig = optuna.visualization.plot_param_importances(study)
 
     fig.update_layout(dragmode=False)
@@ -89,6 +129,17 @@ def create_param_importance_html(
 
 
 def create_timeline_html(study: optuna.Study, savepath: str | PathLike[str]) -> None:
+    """
+    Save an Optuna trial timeline as interactive HTML.
+
+    Parameters
+    ----------
+    study : optuna.Study
+        Study whose trial durations and states will be plotted.
+    savepath : str or os.PathLike
+        Destination HTML file. Its parent directory must already exist.
+
+    """
     fig = optuna.visualization.plot_timeline(study)
 
     fig.update_layout(hovermode=False, dragmode=False)
@@ -107,6 +158,20 @@ def create_timeline_html(study: optuna.Study, savepath: str | PathLike[str]) -> 
 
 
 def create_all_optuna_plots(study: optuna.Study, save_dir: str | PathLike[str]) -> None:
+    """
+    Save the history, importance, timeline and parameter slice plots for a study.
+
+    Parameters
+    ----------
+    study : optuna.Study
+        Single-objective study suitable for all four plot types. See the
+        individual plotting functions for their trial requirements.
+    save_dir : str or os.PathLike
+        Existing output directory. The summary plots are saved as
+        ``opt_history.html``, ``param_importance.html`` and ``timeline.html``;
+        each parameter slice is saved as ``<parameter>_slice_plot.html``.
+
+    """
     create_opt_history_html(study, f"{save_dir}/opt_history.html")
     create_param_importance_html(study, f"{save_dir}/param_importance.html")
     create_timeline_html(study, f"{save_dir}/timeline.html")
@@ -118,6 +183,25 @@ def create_slice_plots_html(
     savepath: str | PathLike[str],
     yaxis_title: str = "ROC_AUC",
 ) -> None:
+    """
+    Save a parameter slice plot for each parameter, coloured by objective rank.
+
+    Parameters
+    ----------
+    study : optuna.Study
+        Single-objective study whose trials have numeric objective values.
+    savepath : str or os.PathLike
+        Existing output directory. Each plot is saved as
+        ``<parameter>_slice_plot.html`` within this directory.
+    yaxis_title : str, optional
+        Label for the objective-value axis. Defaults to ``"ROC_AUC"``.
+
+    Notes
+    -----
+    Colour assignment assumes trial numbers match positions in the retrieved
+    trial list, and that Optuna's slice traces follow the same trial order.
+
+    """
     # This assumes study.get_trials() returns trials in trial-number order
     # and that slice plots use the same order. If this breaks, check these
     # assumptions first.
@@ -212,11 +296,38 @@ def create_slice_plots_html(
 
 
 class TickInfo(NamedTuple):
+    """
+    Store colour-bar tick positions and their formatted objective-value labels.
+
+    Attributes
+    ----------
+    coloridxs : list of float
+        Normalized positions for the minimum, quartiles and maximum.
+    text : list of str
+        Labels pairing each quantile name with its objective value.
+
+    """
+
     coloridxs: list[float]
     text: list[str]
 
 
 def get_tick_info(target_values: np.ndarray) -> TickInfo:
+    """
+    Build colour-bar labels for the minimum, quartiles and maximum of values.
+
+    Parameters
+    ----------
+    target_values : numpy.ndarray
+        Non-empty, one-dimensional collection of finite objective values.
+
+    Returns
+    -------
+    TickInfo
+        Normalized tick positions at 0, 0.25, 0.5, 0.75 and 1, with labels
+        containing the corresponding objective-value quantiles.
+
+    """
     sorted_target_values = np.sort(target_values)
     coloridxs = [0, 0.25, 0.5, 0.75, 1]
     values = np.quantile(sorted_target_values, coloridxs)

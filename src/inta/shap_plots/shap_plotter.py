@@ -22,8 +22,16 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from matplotlib.colors import LinearSegmentedColormap
     from numpy.typing import NDArray
+
+    _ExplanationResult: TypeAlias = tuple[
+        shap.Explainer,
+        sp.csr_matrix,
+        float | np.floating[Any] | NDArray[Any] | None,
+    ]
 
 MAX_SVC_EXPLANATION_SAMPLES = 1_000
 MAX_DECISION_PLOT_SAMPLES = 1_000
@@ -557,7 +565,9 @@ class ShapPlotter:
             msg = f"At most {MAX_DECISION_PLOT_SAMPLES} data indices may be supplied."
             raise ValueError(msg)
         if data_indices is None:
-            data_indices = range(min(self.X_test.shape[0], MAX_DECISION_PLOT_SAMPLES))
+            data_indices = list(
+                range(min(self.X_test.shape[0], MAX_DECISION_PLOT_SAMPLES))
+            )
 
         return DecisionPlot(
             self.expected_value,
@@ -606,11 +616,11 @@ class ShapPlotter:
             log_scale=log_scale,
         )
 
-    def lgbmclassifier_explain(self) -> None:
+    def lgbmclassifier_explain(self) -> _ExplanationResult:
         """Set up ShapPlotter for lgbm models."""
         return self.tree_explain()
 
-    def xgbclassifier_explain(self) -> None:
+    def xgbclassifier_explain(self) -> _ExplanationResult:
         """Set up ShapPlotter for xgb models."""
         if self.model.attr("boosting_type") != "gblinear":
             return self.tree_explain()
@@ -633,17 +643,35 @@ class ShapPlotter:
         expected_value = explainer.expected_value[0]
         return explainer, shap_values, expected_value
 
-    def randomforestclassifier_explain(self) -> None:
+    def randomforestclassifier_explain(self) -> _ExplanationResult:
         """Set up ShapPlotter for random forest models."""
         return self.tree_explain()
 
-    def svc_explain(self) -> None:
+    def svc_explain(self) -> _ExplanationResult:
         """Set up ShapPlotter for SVC models."""
         return self.kernel_explain()
 
     def tree_shap_values(
         self, explainer: shap.TreeExplainer, data: NDArray[Any]
     ) -> NDArray[Any] | None:
+        """
+        Extract tree SHAP values using the current model's output layout.
+
+        Parameters
+        ----------
+        explainer : shap.TreeExplainer
+            Explainer configured for the current model.
+        data : numpy.ndarray
+            Dense feature data of shape ``(n_samples, n_features)``.
+
+        Returns
+        -------
+        numpy.ndarray or None
+            The explainer's SHAP values for LightGBM or XGBoost, or the values
+            at class index 1 for a random forest. Returns ``None`` for other
+            model names.
+
+        """
         if self.model_name in ["lgbmclassifier", "xgbclassifier"]:
             return explainer.shap_values(data)
         if self.model_name == "randomforestclassifier":
@@ -653,13 +681,29 @@ class ShapPlotter:
     def tree_expected_value(
         self, explainer: shap.TreeExplainer
     ) -> float | np.floating[Any] | NDArray[Any] | None:
+        """
+        Extract the tree explainer's baseline for the current model.
+
+        Parameters
+        ----------
+        explainer : shap.TreeExplainer
+            Explainer configured for the current model.
+
+        Returns
+        -------
+        float, numpy.floating, numpy.ndarray or None
+            The explainer's expected value for LightGBM or XGBoost, or the
+            expected value at class index 1 for a random forest. Returns
+            ``None`` for other model names.
+
+        """
         if self.model_name in ["lgbmclassifier", "xgbclassifier"]:
             return explainer.expected_value
         if self.model_name == "randomforestclassifier":
             return explainer.expected_value[1]
         return None
 
-    def kernel_explain(self) -> None:
+    def kernel_explain(self) -> _ExplanationResult:
         """
         Set up ShapPlotter for models with kernel explainer.
 
@@ -683,7 +727,7 @@ class ShapPlotter:
         expected_value = explainer.expected_value
         return explainer, shap_values, expected_value
 
-    def tree_explain(self) -> None:
+    def tree_explain(self) -> _ExplanationResult:
         """General method to set up tree explainer for tree-based models."""
         # if not self.tree_path_dependent:
         background_data = np.zeros((1, self.X_test.shape[-1]))

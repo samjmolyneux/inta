@@ -25,6 +25,32 @@ def select_threshold_plot(
     savepath: str | PathLike[str] = "select-threshold-plot.html",
     image_savepath: str = "select-threshold-plot",
 ) -> None:
+    """
+    Save an interactive binary-classification threshold selection plot.
+
+    Parameters
+    ----------
+    y : array-like of shape (n_samples,)
+        True binary labels. Both classes, encoded as 0 and 1, must be present.
+    scores : array-like of shape (n_samples,)
+        Prediction scores aligned with ``y``. Larger scores must indicate a
+        stronger prediction of the positive class.
+    savepath : str or os.PathLike, optional
+        Destination HTML file. Its parent directory must already exist.
+    image_savepath : str, optional
+        Base filename used when exporting an image from the plot.
+
+    Raises
+    ------
+    ValueError
+        If ``y`` does not contain exactly the two labels 0 and 1.
+
+    Notes
+    -----
+    The plot combines class score densities, a gains curve, threshold-dependent
+    confusion counts, ROC AUC and average precision.
+
+    """
     if np.unique(y).tolist() != [0, 1]:
         msg = "y must be binary labels 0 and 1"
         raise ValueError(msg)
@@ -121,6 +147,37 @@ def _get_density_curve_data(
 def compute_gains_data(
     y_asc: NDArray[Any], scores_asc: NDArray[Any]
 ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.object_]]:
+    """
+    Compute a gains curve from binary labels and scores sorted by score.
+
+    Parameters
+    ----------
+    y_asc : numpy.ndarray of shape (n_samples,)
+        Binary labels encoded as 0 and 1, with at least one positive example.
+        Rows must be aligned with ``scores_asc`` in ascending score order.
+    scores_asc : numpy.ndarray of shape (n_samples,)
+        Prediction scores sorted in ascending order. Larger scores indicate a
+        stronger prediction of the positive class.
+
+    Returns
+    -------
+    gain_curve_xs : numpy.ndarray
+        Fractions of all examples reviewed in descending score order, including
+        the endpoints 0 and 1.
+    gain_curve_ys : numpy.ndarray
+        Fractions of positive examples found at the corresponding x positions,
+        including the endpoints 0 and 1.
+    gains_thresholds : numpy.ndarray of object
+        Score thresholds at the interior curve points, with ``None`` at both
+        endpoints. These align with the other two returned arrays.
+
+    Notes
+    -----
+    Interior points are recorded at positive examples. If there are more than
+    ``MAX_GAINS_POINTS`` such points, they are downsampled by recall bins before
+    the endpoints are added.
+
+    """
     y_desc = y_asc[::-1]
     pos_scores_asc = scores_asc[y_asc == 1]
     pos_scores_desc = pos_scores_asc[::-1]
