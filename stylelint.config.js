@@ -1,4 +1,6 @@
-/** @type {import("stylelint").Config} */
+/**
+ * @type {import("stylelint").Config}
+ */
 export default {
   plugins: [
     "stylelint-no-unsupported-browser-features",
@@ -7,17 +9,12 @@ export default {
   extends: ["stylelint-config-standard", "stylelint-config-clean-order"],
   rules: {
     "plugin/no-unsupported-browser-features": true,
-    "plugin/use-defensive-css": [
-      true,
-      {
-        "accidental-hover": true,
-        "background-repeat": true,
-        "custom-property-fallbacks": true,
-        "flex-wrapping": true,
-        "scroll-chaining": true,
-        "scrollbar-gutter": true,
-        "vendor-prefix-grouping": true,
-      },
-    ],
+    "defensive-css/no-accidental-hover": true,
+    "defensive-css/no-mixed-vendor-prefixes": true,
+    "defensive-css/require-background-repeat": true,
+    "defensive-css/require-custom-property-fallback": true,
+    "defensive-css/require-flex-wrap": true,
+    "defensive-css/require-overscroll-behavior": true,
+    "defensive-css/require-scrollbar-gutter": true,
   },
 };

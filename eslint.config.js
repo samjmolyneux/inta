@@ -4,7 +4,7 @@ import { defineConfig } from "eslint/config";
 import html from "@html-eslint/eslint-plugin";
 import js from "@eslint/js";
 import jsdoc from "eslint-plugin-jsdoc";
-import pluginImport from "eslint-plugin-import";
+import pluginImport from "eslint-plugin-import-x";
 import pluginN from "eslint-plugin-n";
 import pluginPerfectionist from "eslint-plugin-perfectionist";
 import pluginPromise from "eslint-plugin-promise";
@@ -61,8 +61,12 @@ export default defineConfig([
       // "@stylistic/arrow-parens": ["error", "always"],
       "one-var": "off",
       "id-length": "off",
-      "unicorn/prevent-abbreviations": "off",
+      "unicorn/name-replacements": "off",
+      // Parent directories are Python packages and use snake_case.
+      "unicorn/filename-case": ["error", { checkDirectories: false }],
       "unicorn/prefer-ternary": "off",
+      // Keep traditional leading asterisks in JSDoc comments.
+      "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
     },
   },
 
@@ -71,11 +75,14 @@ export default defineConfig([
     plugins: { html },
     extends: ["html/recommended"],
     language: "html/html",
+    languageOptions: {
+      templateEngineSyntax: { "{{": "}}", "{%": "%}", "{#": "#}" },
+    },
     rules: {
       "html/indent": "off",
       "html/attrs-newline": "off",
       "html/require-closing-tags": ["error", { selfClosing: "always" }],
-      "html/no-extra-spacing-attrs": [
+      "html/no-extra-spacing-tags": [
         "error",
         {
           enforceBeforeSelfClose: true,

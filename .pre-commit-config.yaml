@@ -1,3 +1,4 @@
+minimum_pre_commit_version: "4.7.0"
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -19,87 +20,67 @@ repos:
       - id: check-merge-conflict
       - id: check-json
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+    rev: v1.5.6
     hooks:
       - id: forbid-tabs
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.24.2
+    rev: v8.30.0
     hooks:
       - id: gitleaks
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.1
+    rev: v0.17.0
     hooks:
       - id: ruff-check
       - id: ruff-format
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.8
+    rev: v1.7.12
     hooks:
       - id: actionlint
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.29.0
+    rev: v1.38.0
     hooks:
       - id: yamllint
   - repo: https://github.com/ComPWA/taplo-pre-commit
     rev: v0.9.3
     hooks:
       - id: taplo-lint
+        files: ^pyproject\.toml$
+        # TODO: Revisit the schema override after the upstream fix (issue #44).
+        args:
+          - --schema
+          - https://www.schemastore.org/pyproject.json
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.18.1
+    rev: v0.23.3
     hooks:
       - id: markdownlint-cli2
-  - repo: https://github.com/thlorenz/doctoc
-    rev: v2.2.0
-    hooks:
-      - id: doctoc
-        files: ^README\.md$
-        args: [--github, --maxlevel=3]
-  - repo: https://github.com/eslint/eslint
-    rev: v9.38.0
+  - repo: local
+    # ESLint's config imports plugins from the project.
+    # Run npm ci before these hooks, including in CI.
     hooks:
       - id: eslint
-        types: [file]
-        files: \.(?:[jt]sx?|htm)$
+        name: ESLint
+        entry: npm exec --offline --no -- eslint
+        language: system
+        files: \.(?:[cm]?js|jsx|tsx?|html?)$
         args: ["--max-warnings=0", "--no-warn-ignored"]
-        additional_dependencies:
-          - eslint@9.38.0
-          - "@eslint/js@9.38.0"
-          - "@html-eslint/eslint-plugin@0.47.0"
-          - "@html-eslint/parser@0.47.0"
-          - eslint-config-prettier@10.1.8
-          - eslint-plugin-import@2.32.0
-          - eslint-plugin-jsdoc@61.1.4
-          - eslint-plugin-n@17.23.1
-          - eslint-plugin-perfectionist@4.15.1
-          - eslint-plugin-promise@7.2.1
-          - eslint-plugin-regexp@2.10.0
-          - eslint-plugin-unicorn@61.0.2
-          - eslint-plugin-sonarjs@3.0.5
-  - repo: https://github.com/thibaudcolas/pre-commit-stylelint
-    rev: v16.25.0
-    hooks:
       - id: stylelint
+        name: Stylelint
+        entry: npm exec --offline --no -- stylelint
+        language: system
         files: \.css$
-        args: [--allow-empty-input]
-        additional_dependencies:
-          - stylelint@16.25.0
-          - stylelint-config-standard@39.0.1
-          - stylelint-config-clean-order@7.0.0
-          - stylelint-no-unsupported-browser-features@8.0.5
-          - stylelint-plugin-defensive-css@1.0.4
-  - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.6.2
-    hooks:
+        args: ["--max-warnings=0"]
       - id: prettier
+        name: Prettier
+        entry: npm exec --offline --no -- prettier
+        language: system
         args: [--check]
         files: \.(css|html|js|json|md|ya?ml)$
-        additional_dependencies:
-          - prettier@3.6.2
   - repo: https://github.com/pappasam/toml-sort
-    rev: v0.24.2
+    rev: v0.25.0
     hooks:
       - id: toml-sort
         args: [--check]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+    rev: v2.4.0
     hooks:
       - id: mypy

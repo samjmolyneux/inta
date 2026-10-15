@@ -4,7 +4,7 @@ requires = ["setuptools", "setuptools-scm"]
 
 [project]
 authors = [
-    {name = "Sam Molyneux"}
+    { name = "Sam Molyneux" }
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -56,10 +56,11 @@ all_plots = [
     "shap"
 ]
 dev = [
-    "mypy",
-    "pre-commit",
-    "pytest",
-    "ruff"
+    "jinja2",
+    "mypy==2.4.0",
+    "pre-commit==4.7.0",
+    "pytest==9.1.1",
+    "ruff==0.17.0"
 ]
 
 [tool.mypy]
@@ -113,6 +114,6 @@ inta = ["**/*.css", "**/*.html", "**/*.js", "py.typed"]
 all = true
 ignore_case = true
 in_place = true
+overrides."project.classifiers".inline_arrays = false
 spaces_before_inline_comment = 2
 spaces_indent_inline_array = 4
-overrides."project.classifiers".inline_arrays = false
