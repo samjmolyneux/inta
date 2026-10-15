@@ -45,14 +45,19 @@ export default defineConfig([
       "max-lines": "off",
       "max-statements": "off",
       "no-inline-comments": "off",
+      // Allow TODO notes while still flagging FIXME and XXX comments.
+      "no-warning-comments": ["error", { terms: ["fixme", "xxx"] }],
+      "sonarjs/todo-tag": "off",
       "no-unused-vars": ["error", { args: "all" }],
       // Capitalize comment openings while preserving continuation lines and code examples.
       "capitalized-comments": ["error", "always", { ignoreConsecutiveComments: true }],
       "no-shadow": ["error", { builtinGlobals: true, hoist: "all" }],
       "no-ternary": "off",
       "sort-keys": "off",
-      curly: ["error", "multi-line"], //TODO: what's going on here?
-      "no-magic-numbers": ["warn"],
+      // Allow single-line guard clauses without braces.
+      curly: ["error", "multi-line"],
+      // Name numeric values when their meaning or shared use needs explanation.
+      "no-magic-numbers": "off",
       "perfectionist/sort-objects": "off",
       "perfectionist/sort-imports": "off",
       "perfectionist/sort-classes": "off",

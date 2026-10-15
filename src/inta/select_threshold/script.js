@@ -3,6 +3,17 @@
 // TODO: Need a signal of wether the inputs are valid and or not in valid range.
 // TODO: Check that the no js message is shown for all
 
+// F4 uses beta = 4 in the F-beta formula.
+const F4_BETA_SQUARED = 4 ** 2;
+
+// Keep the density plots' ranges and threshold lines aligned.
+const SCORE_AXIS_PADDING_FRACTION = 0.05;
+const DENSITY_Y_MAX_FACTOR = 1.1;
+
+// Place distribution labels 2.5% from each edge; hide them within a 4% segment.
+const DISTRIBUTION_LABEL_INSET_FRACTION = 0.025;
+const DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION = 0.04;
+
 /**
  * @typedef {object} ClassificationMetrics
  * @property {number} TN - Number of true negatives
@@ -143,7 +154,8 @@ const computeClassificationMetrics = (threshold, posScores, negScores) => {
   if (precision === 0 && TPR === 0) {
     F4 = 0;
   } else {
-    F4 = (17 * precision * TPR) / (16 * precision + TPR);
+    F4 =
+      ((1 + F4_BETA_SQUARED) * precision * TPR) / (F4_BETA_SQUARED * precision + TPR);
   }
 
   return {
@@ -448,14 +460,17 @@ const createSelectThresholdPlot = (cfg) => {
     xaxis: {
       domain: [0, 0.45],
       anchor: "y",
-      range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
+      range: [
+        minScore - SCORE_AXIS_PADDING_FRACTION * scoreRange,
+        maxScore + SCORE_AXIS_PADDING_FRACTION * scoreRange,
+      ],
       zeroline: false,
     },
     yaxis: {
       domain: [0.55, 1],
       anchor: "x",
       title: { text: "Actual Negatives" },
-      range: [0, maxDistributionY * 1.1],
+      range: [0, maxDistributionY * DENSITY_Y_MAX_FACTOR],
     },
     xaxis2: {
       domain: [0.55, 0.775],
@@ -479,14 +494,17 @@ const createSelectThresholdPlot = (cfg) => {
       domain: [0, 0.45],
       anchor: "y3",
       title: "Predicted Probability",
-      range: [minScore - 0.05 * scoreRange, maxScore + 0.05 * scoreRange],
+      range: [
+        minScore - SCORE_AXIS_PADDING_FRACTION * scoreRange,
+        maxScore + SCORE_AXIS_PADDING_FRACTION * scoreRange,
+      ],
       zeroline: false,
     },
     yaxis3: {
       domain: [0, 0.45],
       anchor: "x3",
       title: { text: "Actual Positives" },
-      range: [0, maxDistributionY * 1.1],
+      range: [0, maxDistributionY * DENSITY_Y_MAX_FACTOR],
     },
     xaxis4: {
       domain: [0.55, 1],
@@ -629,7 +647,10 @@ const updateInputElements = (ui, threshold, metrics, dp) => {
  * @returns {DistributionAnnotationVisibility} - visibility flags
  */
 const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
-  if (threshold > minScore + 0.96 * scoreRange) {
+  if (
+    threshold >
+    minScore + (1 - DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION) * scoreRange
+  ) {
     return {
       distributionTNAnnotationVisible: true,
       distributionFNAnnotationVisible: true,
@@ -638,7 +659,7 @@ const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
     };
   }
 
-  if (threshold < minScore + 0.04 * scoreRange) {
+  if (threshold < minScore + DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION * scoreRange) {
     return {
       distributionTNAnnotationVisible: false,
       distributionFNAnnotationVisible: false,
@@ -735,9 +756,9 @@ const updatePlot = (threshold, cfg, ui) => {
 
   // Vertical dashed lines on distributions
   const lineNegX = [threshold, threshold];
-  const lineNegY = [0, maxDistributionY * 1.1];
+  const lineNegY = [0, maxDistributionY * DENSITY_Y_MAX_FACTOR];
   const linePosX = [threshold, threshold];
-  const linePosY = [0, maxDistributionY * 1.1];
+  const linePosY = [0, maxDistributionY * DENSITY_Y_MAX_FACTOR];
 
   const metrics = computeClassificationMetrics(threshold, posScores, negScores);
 
@@ -802,7 +823,7 @@ const updatePlot = (threshold, cfg, ui) => {
     text: "TN",
     y: 0.97,
     yref: "y domain",
-    x: minScore + 0.025 * scoreRange,
+    x: minScore + DISTRIBUTION_LABEL_INSET_FRACTION * scoreRange,
     visible: distributionTNAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
@@ -811,7 +832,7 @@ const updatePlot = (threshold, cfg, ui) => {
     text: "FP",
     y: 0.97,
     yref: "y domain",
-    x: minScore + 0.975 * scoreRange,
+    x: minScore + (1 - DISTRIBUTION_LABEL_INSET_FRACTION) * scoreRange,
     visible: distributionFPAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
@@ -820,7 +841,7 @@ const updatePlot = (threshold, cfg, ui) => {
     text: "FN",
     y: 0.97,
     yref: "y3 domain",
-    x: minScore + 0.025 * scoreRange,
+    x: minScore + DISTRIBUTION_LABEL_INSET_FRACTION * scoreRange,
     visible: distributionFNAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
@@ -829,7 +850,7 @@ const updatePlot = (threshold, cfg, ui) => {
     text: "TP",
     y: 0.97,
     yref: "y3 domain",
-    x: minScore + 0.975 * scoreRange,
+    x: minScore + (1 - DISTRIBUTION_LABEL_INSET_FRACTION) * scoreRange,
     visible: distributionTPAnnotationVisible,
     font: { size: 14 },
     showarrow: false,
