@@ -5,6 +5,13 @@
   "engines": {
     "node": "^22.22.2 || >=24.15.0"
   },
+  "browserslist": [
+    "last 2 Chrome major versions",
+    "last 2 Edge major versions",
+    "last 2 Firefox major versions",
+    "Firefox ESR",
+    "last 2 Safari major versions"
+  ],
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@html-eslint/eslint-plugin": "0.67.0",

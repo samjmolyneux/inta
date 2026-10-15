@@ -1,19 +1,17 @@
 #plot-loading {
   position: fixed;
+  z-index: 1000;
   inset: 0;
 
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
   align-items: center;
   justify-content: center;
 
-  background-color: rgb(255 255 255 / 90%);
-
-  z-index: 1000;
-
   font-size: 1rem;
 
-  gap: 0.75rem;
+  background-color: rgb(255 255 255 / 90%);
 }
 
 [hidden] {
@@ -21,14 +19,14 @@
 }
 
 .loader {
+  --loader-mask: conic-gradient(#0000 10%, #000), linear-gradient(#000 0 0) content-box;
+
+  aspect-ratio: 1;
   width: 50px;
   padding: 8px;
-  aspect-ratio: 1;
   border-radius: 50%;
 
   background: #25b09b;
-
-  --loader-mask: conic-gradient(#0000 10%, #000), linear-gradient(#000 0 0) content-box;
 
   -webkit-mask: var(--loader-mask);
   mask: var(--loader-mask);

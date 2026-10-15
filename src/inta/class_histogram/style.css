@@ -1,8 +1,8 @@
 body {
-  font-family: Arial, sans-serif;
   margin: 0;
-  padding: 0;
   margin-top: 2em;
+  padding: 0;
+  font-family: Arial, sans-serif;
 }
 
 #histogram-container {
@@ -11,9 +11,9 @@ body {
   /* align-items: center; */
   /* justify-content: center; */
   position: relative;
+  aspect-ratio: 16/9;
   width: 80%;
   margin: 0 auto;
-  aspect-ratio: 16/9;
 }
 
 #histogram {
@@ -27,20 +27,20 @@ body {
 
 #tips-container {
   position: absolute; /* Overlay on top of #histogram */
-  bottom: 10%; /* Adjust spacing from the top */
   right: 1%; /* Adjust spacing from the right */
-
-  background-color: #f8f8f8;
+  bottom: 10%; /* Adjust spacing from the top */
 
   border-radius: 0.5rem;
 
   font-size: 0.7rem;
+
+  background-color: #f8f8f8;
 }
 
 #tips-container ul {
-  list-style-type: none;
-  padding: 0.4rem;
   margin: 0;
+  padding: 0.4rem;
+  list-style-type: none;
 }
 
 #tips-container li {
@@ -55,9 +55,9 @@ body {
 
 #bin-container {
   width: 80%; /* Same width as the histogram */
+  margin-right: auto;
+  margin-left: auto; /* Centers container but keeps text left-aligned */
 
   /* max-width: 50rem; */
   text-align: left; /* Aligns text to the left */
-  margin-left: auto; /* Centers container but keeps text left-aligned */
-  margin-right: auto;
 }

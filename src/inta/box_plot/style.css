@@ -1,23 +1,22 @@
 body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   margin: 0;
   padding: 0;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 #box-plot-container {
-  width: 80%;
-
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 
+  width: 80%;
   margin: 1rem;
 }
 
 #box-plot-div {
-  width: 100%;
   aspect-ratio: 16 / 9;
+  width: 100%;
 }

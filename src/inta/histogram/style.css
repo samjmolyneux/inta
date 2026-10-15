@@ -1,8 +1,8 @@
 body {
-  font-family: Arial, sans-serif;
   margin: 0;
-  padding: 0;
   margin-top: 2em;
+  padding: 0;
+  font-family: Arial, sans-serif;
 }
 
 #histogram-container {
@@ -13,21 +13,19 @@ body {
 }
 
 #histogram {
-  width: 90%;
-  max-width: 50rem;
-
   /* // margin-bottom: 0.5em;  Adds spacing before dropdown */
   aspect-ratio: 3/2;
+  width: 90%;
+  max-width: 50rem;
 }
 
 #histogram-controls {
   width: 80%; /* Same width as the histogram */
   max-width: 50rem;
+  margin-right: auto;
+  margin-left: auto; /* Centers container but keeps text left-aligned */
 
   text-align: left; /* Aligns text to the left */
-
-  margin-left: auto; /* Centers container but keeps text left-aligned */
-  margin-right: auto;
 }
 
 #table-container {
@@ -38,9 +36,9 @@ body {
 
   width: 80%;
   max-width: 50rem;
-  margin-left: auto;
-  margin-right: auto;
   margin-top: 2em; /* Adds spacing between histogram and table */
+  margin-right: auto;
+  margin-left: auto;
 }
 
 #stats-table {
