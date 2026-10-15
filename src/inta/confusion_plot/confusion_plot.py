@@ -17,6 +17,7 @@ def binary_train_valid_confusion_plotly(
     y_train_pred: ArrayLike,
     y_val: ArrayLike,
     y_val_pred: ArrayLike,
+    *,
     positive_label: str = "1",
     negative_label: str = "0",
     save_path: str | None = None,
@@ -81,8 +82,22 @@ def binary_train_valid_confusion_plotly(
         height=400,
     )
 
-    add_confusion_trace(fig, cm1, positive_label, negative_label, 1, 1)
-    add_confusion_trace(fig, cm2, positive_label, negative_label, 1, 2)
+    add_confusion_trace(
+        fig,
+        cm1,
+        positive_label=positive_label,
+        negative_label=negative_label,
+        row=1,
+        col=1,
+    )
+    add_confusion_trace(
+        fig,
+        cm2,
+        positive_label=positive_label,
+        negative_label=negative_label,
+        row=1,
+        col=2,
+    )
 
     add_labels_to_confusion_trace(fig, cm1, labels, plot_index=1)
     add_labels_to_confusion_trace(fig, cm2, labels, plot_index=2)
@@ -102,6 +117,7 @@ def binary_train_valid_confusion_plotly(
 def add_confusion_trace(
     fig: go.Figure,
     cm: NDArray[np.int_],
+    *,
     positive_label: str,
     negative_label: str,
     row: int,
@@ -320,13 +336,15 @@ def get_font_color(value: int, cm: NDArray[np.int_]) -> Literal["white", "dark b
     return "dark blue"
 
 
-def binary_train_valid_test_confusion_plotly(
+# Keep the three matching truth/prediction pairs positional.
+def binary_train_valid_test_confusion_plotly(  # noqa: PLR0917
     y_train: ArrayLike,
     y_train_pred: ArrayLike,
     y_val: ArrayLike,
     y_val_pred: ArrayLike,
     y_test: ArrayLike,
     y_test_pred: ArrayLike,
+    *,
     positive_label: str = "1",
     negative_label: str = "0",
     save_path: str | None = None,
@@ -400,9 +418,30 @@ def binary_train_valid_test_confusion_plotly(
         height=400,
     )
 
-    add_confusion_trace(fig, cm1, positive_label, negative_label, 1, 1)
-    add_confusion_trace(fig, cm2, positive_label, negative_label, 1, 2)
-    add_confusion_trace(fig, cm3, positive_label, negative_label, 1, 3)
+    add_confusion_trace(
+        fig,
+        cm1,
+        positive_label=positive_label,
+        negative_label=negative_label,
+        row=1,
+        col=1,
+    )
+    add_confusion_trace(
+        fig,
+        cm2,
+        positive_label=positive_label,
+        negative_label=negative_label,
+        row=1,
+        col=2,
+    )
+    add_confusion_trace(
+        fig,
+        cm3,
+        positive_label=positive_label,
+        negative_label=negative_label,
+        row=1,
+        col=3,
+    )
 
     add_labels_to_confusion_trace(fig, cm1, labels, plot_index=1)
     add_labels_to_confusion_trace(fig, cm2, labels, plot_index=2)

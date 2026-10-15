@@ -40,6 +40,7 @@ def _learning_curve_for_one_proportion(
     proportion: float,
     scores: _FeatureMatrixT,
     labels: NDArray[Any],
+    *,
     train_fn: Callable[[_FeatureMatrixT, NDArray[Any]], _ModelT],
     predict_scores_fn: Callable[[_ModelT, _FeatureMatrixT], _PredictionT],
     metric: Callable[[NDArray[Any], _PredictionT], float],
@@ -86,6 +87,7 @@ def get_learning_curve_data(
     train_fn: Callable[[_FeatureMatrixT, NDArray[Any]], _ModelT],
     predict_scores_fn: Callable[[_ModelT, _FeatureMatrixT], _PredictionT],
     metric: Callable[[NDArray[Any], _PredictionT], float],
+    *,
     nfolds: int = 5,
     proportions: Iterable[float] | None = None,
     n_jobs: int = -1,  # -1 = use all CPU cores
@@ -130,6 +132,7 @@ def learning_curve(
     train_fn: Callable[[_FeatureMatrixT, NDArray[Any]], _ModelT],
     predict_scores_fn: Callable[[_ModelT, _FeatureMatrixT], _PredictionT],
     metric: Callable[[NDArray[Any], _PredictionT], float],
+    *,
     savepath: str | PathLike[str],
     image_filename: str = "learning_curve",
     title: str = "Learning Curve with Shaded AUC Bounds",

@@ -74,6 +74,7 @@ class DecisionPlot:
         shap_values: sp.csr_matrix,
         X_test: sp.csr_matrix,
         feature_names: NDArray[np.str_],
+        *,
         num_display: int,
         log_scale: bool,
     ) -> None:
@@ -274,6 +275,7 @@ class DotPlot:
         shap_values: sp.csr_matrix,
         X_test: sp.csr_matrix,
         feature_names: NDArray[np.str_],
+        *,
         num_display: int,
         log_scale: bool,
         plot_zero: bool,
@@ -499,9 +501,9 @@ class ShapPlotter:
             self.shap_values,
             self.X_test,
             self.feature_names,
-            num_display,
-            log_scale,
-            plot_zero,
+            num_display=num_display,
+            log_scale=log_scale,
+            plot_zero=plot_zero,
         )
 
     def bar_chart(self, num_display: int = 10) -> BarPlot:
@@ -563,8 +565,8 @@ class ShapPlotter:
             self.shap_values[data_indices],
             self.X_test[data_indices],
             self.feature_names,
-            num_display,
-            log_scale,
+            num_display=num_display,
+            log_scale=log_scale,
         )
 
     def single_decision_plot(
@@ -600,8 +602,8 @@ class ShapPlotter:
             self.shap_values[index],
             self.X_test[index],
             self.feature_names,
-            num_display,
-            log_scale,
+            num_display=num_display,
+            log_scale=log_scale,
         )
 
     def lgbmclassifier_explain(self) -> None:
@@ -835,6 +837,7 @@ def sparse_summary_new(
     shap_values: sp.csr_matrix,
     features: sp.csr_matrix,
     feature_names: NDArray[np.str_],
+    *,
     plot_type: str,
     max_display: int = 10,
     alpha: float = 1,

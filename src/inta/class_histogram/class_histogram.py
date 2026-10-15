@@ -16,6 +16,7 @@ def positive_negative_scores_histogram_plot(
     y_true: NDArray[Any],
     pred_scores: NDArray[Any],
     savepath: str | PathLike[str],
+    *,
     title: str = "Predicted Scores on Positive and Negative Test Datasets",
     xaxis_title: str = "Predicted Score",
     yaxis_title: str = "Count",

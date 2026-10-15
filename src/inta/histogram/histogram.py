@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 def histogram_plot(
     scores: Sequence[float] | NDArray[Any],
     savepath: str | PathLike[str],
+    *,
     title: str = "",
     xaxis_title: str = "",
     yaxis_title: str = "count",

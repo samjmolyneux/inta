@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 def box_plot(
     data_by_box: Sequence[Sequence[float] | NDArray[Any]] | NDArray[Any],
     box_names: Sequence[str],
+    *,
     title: str,
     xaxis_title: str,
     yaxis_title: str,
