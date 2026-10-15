@@ -1,16 +1,26 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal
+
 import numpy as np
 import plotly.figure_factory as ff
 from sklearn.metrics import average_precision_score, roc_auc_score
 
 from inta.template_renderer import render_template
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from os import PathLike
+
+    from numpy.typing import ArrayLike, NDArray
+
 
 def select_threshold_plot(
-    y,
-    scores,
-    savepath="select-threshold-plot.html",
-    image_savepath="select-threshold-plot",
-):
+    y: ArrayLike,
+    scores: ArrayLike,
+    savepath: str | PathLike[str] = "select-threshold-plot.html",
+    image_savepath: str = "select-threshold-plot",
+) -> None:
     assert np.unique(y).tolist() == [0, 1], "y must be binary labels 0 and 1"
 
     order = np.argsort(scores)
@@ -66,7 +76,9 @@ def select_threshold_plot(
     )
 
 
-def _get_density_curve_data(data, curve_type="kde"):
+def _get_density_curve_data(
+    data: Sequence[ArrayLike], curve_type: Literal["kde", "normal"] = "kde"
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
     Compute distribution data using plotly figure_factory distplot, to plot custom interactive density curve:
 
@@ -100,7 +112,9 @@ def _get_density_curve_data(data, curve_type="kde"):
     return x_dist_data, y_dist_data
 
 
-def compute_gains_data(y_asc, scores_asc):
+def compute_gains_data(
+    y_asc: NDArray[Any], scores_asc: NDArray[Any]
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.object_]]:
     y_desc = y_asc[::-1]
     pos_scores_asc = scores_asc[y_asc == 1]
     pos_scores_desc = pos_scores_asc[::-1]

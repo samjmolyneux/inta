@@ -1,17 +1,27 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
 
 from inta.template_renderer import render_template
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from os import PathLike
+
+    from numpy.typing import NDArray
+
 
 def box_plot(
-    data_by_box,
-    box_names,
-    title,
-    xaxis_title,
-    yaxis_title,
-    image_filename="box_plot",
-    savepath="box_plot.html",
-):
+    data_by_box: Sequence[Sequence[float] | NDArray[Any]] | NDArray[Any],
+    box_names: Sequence[str],
+    title: str,
+    xaxis_title: str,
+    yaxis_title: str,
+    image_filename: str = "box_plot",
+    savepath: str | PathLike[str] = "box_plot.html",
+) -> None:
     # Generate the invisible scatter trace to get hoverline
     invisible_y = np.linspace(
         min([min(d) for d in data_by_box]),

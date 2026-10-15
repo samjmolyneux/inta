@@ -1,15 +1,21 @@
 """This defines some common colors."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from ._colorconv import lab2rgb, lch2lab
 
+if TYPE_CHECKING:
+    from numpy.typing import ArrayLike
+
 try:
     import matplotlib  # noqa: F401
     from matplotlib.colors import LinearSegmentedColormap
 
-    def lch2rgb(x):
+    def lch2rgb(x: ArrayLike):
         return lab2rgb(lch2lab([[x]]))[0][0]
 
     # define our colors using Lch

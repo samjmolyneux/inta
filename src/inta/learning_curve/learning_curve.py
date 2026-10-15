@@ -1,19 +1,41 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, TypeVar
+
 import numpy as np
 from joblib import Parallel, delayed
 from sklearn.model_selection import StratifiedKFold, train_test_split
 
 from inta.template_renderer import render_template
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
+    from os import PathLike
+
+    from numpy.typing import ArrayLike, NDArray
+    from scipy.sparse import csc_array, csc_matrix, csr_array, csr_matrix
+
+_FeatureMatrixT = TypeVar(
+    "_FeatureMatrixT",
+    "NDArray[Any]",
+    "csr_matrix",
+    "csc_matrix",
+    "csr_array",
+    "csc_array",
+)
+_ModelT = TypeVar("_ModelT")
+_PredictionT = TypeVar("_PredictionT", bound="ArrayLike")
+
 
 def _learning_curve_for_one_proportion(
-    proportion,
-    scores,
-    labels,
-    train_fn,
-    predict_scores_fn,
-    metric,
-    kf_splits,  # list( (train_idx, val_idx) ), pre-computed once
-):
+    proportion: float,
+    scores: _FeatureMatrixT,
+    labels: NDArray[Any],
+    train_fn: Callable[[_FeatureMatrixT, NDArray[Any]], _ModelT],
+    predict_scores_fn: Callable[[_ModelT, _FeatureMatrixT], _PredictionT],
+    metric: Callable[[NDArray[Any], _PredictionT], float],
+    kf_splits: Sequence[tuple[NDArray[np.intp], NDArray[np.intp]]],
+) -> tuple[np.float64, list[float], list[float]]:
     train_auc_scores = []
     val_auc_scores = []
     fold_train_sizes = []
@@ -53,15 +75,15 @@ def _learning_curve_for_one_proportion(
 
 
 def get_learning_curve_data(
-    scores,
-    labels,
-    train_fn,
-    predict_scores_fn,
-    metric,
+    scores: _FeatureMatrixT,
+    labels: NDArray[Any],
+    train_fn: Callable[[_FeatureMatrixT, NDArray[Any]], _ModelT],
+    predict_scores_fn: Callable[[_ModelT, _FeatureMatrixT], _PredictionT],
+    metric: Callable[[NDArray[Any], _PredictionT], float],
     nfolds: int = 5,
-    proportions=None,
+    proportions: Iterable[float] | None = None,
     n_jobs: int = -1,  # -1 = use all CPU cores
-):
+) -> tuple[list[np.float64], list[list[float]], list[list[float]]]:
     if proportions is None:
         proportions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
@@ -95,22 +117,22 @@ def get_learning_curve_data(
 
 
 def learning_curve(
-    scores,
-    labels,
-    train_fn,
-    predict_scores_fn,
-    metric,
-    savepath,
-    image_filename="learning_curve",
-    title="Learning Curve with Shaded AUC Bounds",
-    xaxis_title="Training Set Size",
-    yaxis_title="AUC Score",
-    curve_name="Validation AUC",
-    fill_color="rgba(255, 0, 0, 0.2)",
-    marker_color="rgba(255, 0, 0, 0.3)",
-    nfolds=5,
-    proportions=None,
-):
+    scores: _FeatureMatrixT,
+    labels: NDArray[Any],
+    train_fn: Callable[[_FeatureMatrixT, NDArray[Any]], _ModelT],
+    predict_scores_fn: Callable[[_ModelT, _FeatureMatrixT], _PredictionT],
+    metric: Callable[[NDArray[Any], _PredictionT], float],
+    savepath: str | PathLike[str],
+    image_filename: str = "learning_curve",
+    title: str = "Learning Curve with Shaded AUC Bounds",
+    xaxis_title: str = "Training Set Size",
+    yaxis_title: str = "AUC Score",
+    curve_name: str = "Validation AUC",
+    fill_color: str = "rgba(255, 0, 0, 0.2)",
+    marker_color: str = "rgba(255, 0, 0, 0.3)",
+    nfolds: int = 5,
+    proportions: Iterable[float] | None = None,
+) -> None:
     if proportions is None:
         proportions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 

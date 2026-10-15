@@ -1,17 +1,27 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
 
 from inta.template_renderer import render_template
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from os import PathLike
+
+    from numpy.typing import NDArray
+
 
 def histogram_plot(
-    scores,
-    savepath,
-    title="",
-    xaxis_title="",
-    yaxis_title="count",
-    bar_colour="rgba(102, 204, 255, 0.7)",
-    image_filename="histogram",
-):
+    scores: Sequence[float] | NDArray[Any],
+    savepath: str | PathLike[str],
+    title: str = "",
+    xaxis_title: str = "",
+    yaxis_title: str = "count",
+    bar_colour: str = "rgba(102, 204, 255, 0.7)",
+    image_filename: str = "histogram",
+) -> None:
     mean = np.mean(scores)
     median = np.median(scores)
     std_dev = np.std(scores)

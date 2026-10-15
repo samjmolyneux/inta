@@ -88,6 +88,7 @@ ignore = [
     "ANN401",  # Disallow `Any` in annotations.
     "C901",  # Function too complex (McCabe).
     "COM812",  # Missing trailing comma (multi-line).
+    "CPY001",  # Do not require per-file copyright headers.
     "D203",  # Blank line before class docstring.
     "D212",  # Multi-line docstring summary on first line.
     "FBT001",  # Boolean positional arg in definition.

@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import re
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 import optuna
 import plotly
 from optuna.visualization._rank import _get_rank_info
 from scipy.stats import rankdata
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from os import PathLike
 
 standard_config = {
     "scrollZoom": False,
@@ -26,7 +32,7 @@ standard_config = {
 }
 
 
-def make_tick_labels_4f(tick_labels):
+def make_tick_labels_4f(tick_labels: Iterable[str]) -> list[str]:
     pattern = re.compile(r"\(([-+]?[0-9]*\.?[0-9]+)\)")
 
     formatted = []
@@ -43,7 +49,7 @@ def make_tick_labels_4f(tick_labels):
     return formatted
 
 
-def create_opt_history_html(study, savepath):
+def create_opt_history_html(study: optuna.Study, savepath: str | PathLike[str]) -> None:
     fig = optuna.visualization.plot_optimization_history(study)
 
     fig.update_layout(dragmode=False)
@@ -61,7 +67,9 @@ def create_opt_history_html(study, savepath):
     fig.write_html(file=savepath, config=standard_config)
 
 
-def create_param_importance_html(study, savepath):
+def create_param_importance_html(
+    study: optuna.Study, savepath: str | PathLike[str]
+) -> None:
     fig = optuna.visualization.plot_param_importances(study)
 
     fig.update_layout(dragmode=False)
@@ -79,7 +87,7 @@ def create_param_importance_html(study, savepath):
     fig.write_html(file=savepath, config=standard_config)
 
 
-def create_timeline_html(study, savepath):
+def create_timeline_html(study: optuna.Study, savepath: str | PathLike[str]) -> None:
     fig = optuna.visualization.plot_timeline(study)
 
     fig.update_layout(hovermode=False, dragmode=False)
@@ -97,19 +105,23 @@ def create_timeline_html(study, savepath):
     fig.write_html(file=savepath, config=standard_config)
 
 
-def create_all_optuna_plots(study, save_dir):
+def create_all_optuna_plots(study: optuna.Study, save_dir: str | PathLike[str]) -> None:
     create_opt_history_html(study, f"{save_dir}/opt_history.html")
     create_param_importance_html(study, f"{save_dir}/param_importance.html")
     create_timeline_html(study, f"{save_dir}/timeline.html")
     create_slice_plots_html(study, f"{save_dir}")
 
 
-def create_slice_plots_html(study, savepath, yaxis_title="ROC_AUC"):
+def create_slice_plots_html(
+    study: optuna.Study,
+    savepath: str | PathLike[str],
+    yaxis_title: str = "ROC_AUC",
+) -> None:
     # THIS METHOD ASSUMES THAT STUDY.GET_TRIALS() RETURNS TRIALS IN ORDER OF TRIAL NUMBER
     # AND THAT SLICE PLOT PLOTS THEM IN ORDER OF TRIAL NUMBER.
     # IF THIS METHOD EVERY BREAKS, THIS IS LIKELY THE REASON.
 
-    param_names = set()
+    param_names: set[str] = set()
     for trial in study.trials:
         param_names.update(trial.params.keys())
 

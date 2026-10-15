@@ -1,8 +1,10 @@
 """For plotting the SHAP values of a model's features."""
 
+from __future__ import annotations
+
 import json
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import lightgbm as lgb
 import matplotlib.lines as mlines
@@ -16,12 +18,12 @@ from eppi_text_classification.predict import predict_scores
 from matplotlib import cm
 from matplotlib.axes import Axes
 from matplotlib.text import Text
-from numpy.typing import NDArray
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 
 if TYPE_CHECKING:
     from matplotlib.colors import LinearSegmentedColormap
+    from numpy.typing import NDArray
 
 
 model_class_to_name = {
@@ -622,17 +624,23 @@ class ShapPlotter:
         """Set up ShapPlotter for SVC models."""
         return self.kernel_explain()
 
-    def tree_shap_values(self, explainer, data):
+    def tree_shap_values(
+        self, explainer: shap.TreeExplainer, data: NDArray[Any]
+    ) -> NDArray[Any] | None:
         if self.model_name in ["lgbmclassifier", "xgbclassifier"]:
             return explainer.shap_values(data)
         if self.model_name == "randomforestclassifier":
             return explainer.shap_values(data)[:, :, 1]
+        return None
 
-    def tree_expected_value(self, explainer):
+    def tree_expected_value(
+        self, explainer: shap.TreeExplainer
+    ) -> float | np.floating[Any] | NDArray[Any] | None:
         if self.model_name in ["lgbmclassifier", "xgbclassifier"]:
             return explainer.expected_value
         if self.model_name == "randomforestclassifier":
             return explainer.expected_value[1]
+        return None
 
     def kernel_explain(self) -> None:
         """
@@ -815,7 +823,7 @@ def sparse_summary_new(
     color_bar: bool = True,
     plot_size: tuple[float, float] | None = None,
     color_bar_label: str = plot_labels["FEATURE_VALUE"],
-    cmap: "LinearSegmentedColormap" = colors.red_blue,
+    cmap: LinearSegmentedColormap = colors.red_blue,
     use_log_scale: bool = True,
     plot_zero: bool = False,
     n_y_bins: float = 100,

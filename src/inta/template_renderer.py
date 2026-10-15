@@ -1,14 +1,26 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, TypeVar
+
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from os import PathLike
 
-def finalizer(v):
+_ValueT = TypeVar("_ValueT")
+
+
+def finalizer(v: _ValueT | None) -> _ValueT:
     if v is None:
         msg = "Encountered None where a value is required"
         raise ValueError(msg)
     return v
 
 
-def render_template(template, config, savepath):
+def render_template(
+    template: str, config: Mapping[str, object], savepath: str | PathLike[str]
+) -> None:
     environment = Environment(
         loader=PackageLoader("inta", ""),
         autoescape=True,
