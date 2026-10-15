@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
 
 from jinja2 import Environment, PackageLoader, StrictUndefined
@@ -34,5 +35,5 @@ def render_template(
     loaded_template = environment.get_template(template)
 
     content = loaded_template.render(config)
-    with open(savepath, mode="w", encoding="utf-8") as f:
+    with Path(savepath).open(mode="w", encoding="utf-8") as f:
         f.write(content)

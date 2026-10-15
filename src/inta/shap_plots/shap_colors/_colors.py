@@ -1,21 +1,21 @@
-"""This defines some common colors."""
+"""Define colours and colour maps for SHAP plots."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from ._colorconv import lab2rgb, lch2lab
 
 if TYPE_CHECKING:
-    from numpy.typing import ArrayLike
+    from numpy.typing import ArrayLike, NDArray
 
 try:
-    import matplotlib  # noqa: F401
+    import matplotlib as mpl  # noqa: F401
     from matplotlib.colors import LinearSegmentedColormap
 
-    def lch2rgb(x: ArrayLike):
+    def lch2rgb(x: ArrayLike) -> NDArray[np.floating[Any]]:
         return lab2rgb(lch2lab([[x]]))[0][0]
 
     # define our colors using Lch
@@ -130,14 +130,16 @@ try:
     old_blue_rgb = np.array([30, 136, 229]) / 255
     old_red_rgb = np.array([255, 13, 87]) / 255
 
-    colors = []
+    blended_colors = []
     for alpha in np.linspace(1, 0, 100):
-        c = blue_rgb * alpha + (1 - alpha) * white_rgb
-        colors.append(c)
+        blended_rgb = blue_rgb * alpha + (1 - alpha) * white_rgb
+        blended_colors.append(blended_rgb)
     for alpha in np.linspace(0, 1, 100):
-        c = red_rgb * alpha + (1 - alpha) * white_rgb
-        colors.append(c)
-    red_white_blue = LinearSegmentedColormap.from_list("red_transparent_blue", colors)
+        blended_rgb = red_rgb * alpha + (1 - alpha) * white_rgb
+        blended_colors.append(blended_rgb)
+    red_white_blue = LinearSegmentedColormap.from_list(
+        "red_transparent_blue", blended_colors
+    )
 
 
 except ImportError:

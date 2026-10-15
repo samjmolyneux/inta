@@ -1,3 +1,5 @@
+"""Colour palettes and conversion helpers for SHAP visualisations."""
+
 from ._colors import (
     blue_rgb,
     gray_rgb,
