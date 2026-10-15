@@ -93,6 +93,7 @@ ignore = [
     "D212",  # Multi-line docstring summary on first line.
     "FBT001",  # Boolean positional arg in definition.
     "FBT002",  # Boolean default for positional arg.
+    "FIX002",  # Allow TODO comments.
     "N803",  # Argument name not snake_case.
     "N806",  # Non-lowercase variable in function.
     "PLR0912",  # Too many branches.
@@ -101,7 +102,9 @@ ignore = [
     "RET504",  # Unnecessary assign before return.
     "S106",  # Hardcoded password in call.
     "T201",  # `print` found.
-    "T203"  # `pprint` found.
+    "T203",  # `pprint` found.
+    "TD002",  # Do not require an author in TODO comments.
+    "TD003"  # Do not require an issue link in TODO comments.
 ]
 select = ["ALL"]
 

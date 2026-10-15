@@ -1,3 +1,5 @@
+"""Generate interactive classification threshold and gains plots."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
@@ -80,7 +82,7 @@ def _get_density_curve_data(
     data: Sequence[ArrayLike], curve_type: Literal["kde", "normal"] = "kde"
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """
-    Compute distribution data using plotly figure_factory distplot, to plot custom interactive density curve:
+    Compute density-curve coordinates using Plotly's distribution plot.
 
     Parameters
     ----------

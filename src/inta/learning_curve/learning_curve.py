@@ -1,3 +1,5 @@
+"""Compute cross-validated learning curves and render interactive HTML plots."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeVar

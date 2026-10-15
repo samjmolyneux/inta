@@ -1,3 +1,5 @@
+"""Generate interactive HTML visualisations of Optuna optimisation studies."""
+
 from __future__ import annotations
 
 import re
@@ -117,9 +119,9 @@ def create_slice_plots_html(
     savepath: str | PathLike[str],
     yaxis_title: str = "ROC_AUC",
 ) -> None:
-    # THIS METHOD ASSUMES THAT STUDY.GET_TRIALS() RETURNS TRIALS IN ORDER OF TRIAL NUMBER
-    # AND THAT SLICE PLOT PLOTS THEM IN ORDER OF TRIAL NUMBER.
-    # IF THIS METHOD EVERY BREAKS, THIS IS LIKELY THE REASON.
+    # This assumes study.get_trials() returns trials in trial-number order
+    # and that slice plots use the same order. If this breaks, check these
+    # assumptions first.
 
     param_names: set[str] = set()
     for trial in study.trials:
@@ -151,11 +153,9 @@ def create_slice_plots_html(
     for param in param_names:
         fig = optuna.visualization.plot_slice(study, params=[param])
 
-        # We get the colour for each trial
-        # This approach assumes that the optuna.visualization.plot_slice method
-        # Plots the data in order of trial number
-        # But I could probably make it more robuts by getting the y's from the fig then mapping the
-        # y's to the rank and then using that to get the color!!!!!!!!!
+        # Get colours for each trial, assuming plot_slice uses trial-number order.
+        # We could make this more robust by mapping the figure's y-values to
+        # ranks and then using those ranks to choose colours.
         params_trial_numbers = np.array(
             [trial.number for trial in trials if param in trial.params]
         )

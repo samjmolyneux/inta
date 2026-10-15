@@ -1,3 +1,5 @@
+"""Render packaged Jinja templates to HTML with strict value checks."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar

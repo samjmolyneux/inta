@@ -1,3 +1,5 @@
+"""Generate interactive HTML box plots for grouped numeric data."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
