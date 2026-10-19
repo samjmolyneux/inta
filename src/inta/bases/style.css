@@ -28,12 +28,15 @@
 
   background: #25b09b;
 
+  /* WebKit fallbacks cover older browsers; the checker cannot recognise them. */
+  /* stylelint-disable plugin/no-unsupported-browser-features */
   /* stylelint-disable defensive-css/require-custom-property-fallback */
   -webkit-mask: var(--loader-mask);
   mask: var(--loader-mask);
   /* stylelint-enable defensive-css/require-custom-property-fallback */
   -webkit-mask-composite: source-out;
   mask-composite: subtract;
+  /* stylelint-enable plugin/no-unsupported-browser-features */
 
   animation: l3 1s infinite linear;
 }

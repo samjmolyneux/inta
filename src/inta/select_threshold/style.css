@@ -1,13 +1,20 @@
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
+
+  /* Older Safari uses the WebKit fallback, which the checker cannot recognise. */
+  /* stylelint-disable plugin/no-unsupported-browser-features */
   -webkit-appearance: none;
   appearance: none;
+  /* stylelint-enable plugin/no-unsupported-browser-features */
 }
 
 input[type="number"] {
+  /* Keep the Firefox fallback; the checker groups both spellings together. */
+  /* stylelint-disable plugin/no-unsupported-browser-features */
   -moz-appearance: textfield;
   appearance: textfield;
+  /* stylelint-enable plugin/no-unsupported-browser-features */
 }
 
 #plot-div {
@@ -78,12 +85,15 @@ label[for="recall-input"] {
 
   background: #25b09b;
 
+  /* WebKit fallbacks cover older browsers; the checker cannot recognise them. */
+  /* stylelint-disable plugin/no-unsupported-browser-features */
   /* stylelint-disable defensive-css/require-custom-property-fallback */
   -webkit-mask: var(--loader-mask);
   mask: var(--loader-mask);
   /* stylelint-enable defensive-css/require-custom-property-fallback */
   -webkit-mask-composite: source-out;
   mask-composite: subtract;
+  /* stylelint-enable plugin/no-unsupported-browser-features */
 
   animation: l3 1s infinite linear;
 }

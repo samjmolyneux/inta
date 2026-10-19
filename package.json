@@ -6,11 +6,8 @@
     "node": "^22.22.2 || >=24.15.0"
   },
   "browserslist": [
-    "last 2 Chrome major versions",
-    "last 2 Edge major versions",
-    "last 2 Firefox major versions",
-    "Firefox ESR",
-    "last 2 Safari major versions"
+    "Chrome >= 0 or Edge >= 0 or Firefox >= 0 or Safari >= 0 and last 5 years",
+    "Firefox ESR"
   ],
   "devDependencies": {
     "@eslint/js": "10.0.1",
