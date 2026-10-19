@@ -1,6 +1,4 @@
 /* global Plotly */
-// TODO: Move over to using flexbox with two different plots for the layout.
-// TODO: Need a signal of wether the inputs are valid and or not in valid range.
 // TODO: Check that the no js message is shown for all
 
 // F4 uses beta = 4 in the F-beta formula.
@@ -60,6 +58,9 @@ const DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION = 0.04;
  * @property {HTMLInputElement} thresholdInput - input for decision threshold
  * @property {HTMLInputElement} thresholdSlider - range slider for decision threshold
  * @property {HTMLElement} thresholdDisplay - element displaying the formatted threshold text
+ * @property {HTMLElement} inputStatus - validation feedback
+ * @property {HTMLButtonElement} resetButton - restore the initial threshold
+ * @property {HTMLElement} plotDiv - responsive Plotly container
  */
 
 /**
@@ -173,10 +174,84 @@ const computeClassificationMetrics = (threshold, posScores, negScores) => {
 };
 
 /**
+ * Allocate enough space for the plots and table rows at each viewport size.
+ * Domains use Plotly's normalized paper coordinates; tall layouts scroll vertically.
+ * @param {number} width - Available plot width in pixels.
+ * @returns {object} Plot height, margins, and panel domains.
+ */
+const getPlotPresentation = (width) => {
+  if (width >= 1180) {
+    return {
+      height: 800,
+      margin: { l: 72, r: 32, t: 48, b: 64 },
+      domains: {
+        negative: { x: [0, 0.42], y: [0.59, 1] },
+        positive: { x: [0, 0.42], y: [0.02, 0.43] },
+        confusion: { x: [0.54, 0.74], y: [0.61, 0.98] },
+        gains: { x: [0.55, 1], y: [0.02, 0.41] },
+        fixedMetrics: { x: [0.79, 1], y: [0.47, 0.6] },
+        variableMetrics: { x: [0.79, 1], y: [0.66, 1] },
+      },
+    };
+  }
+
+  if (width >= 720) {
+    return {
+      height: 1050,
+      margin: { l: 66, r: 24, t: 48, b: 64 },
+      domains: {
+        negative: { x: [0, 0.43], y: [0.74, 1] },
+        positive: { x: [0, 0.43], y: [0.37, 0.63] },
+        confusion: { x: [0.59, 0.94], y: [0.74, 1] },
+        gains: { x: [0.57, 1], y: [0.37, 0.63] },
+        fixedMetrics: { x: [0.57, 1], y: [0.12, 0.27] },
+        variableMetrics: { x: [0, 0.49], y: [0.015, 0.27] },
+      },
+    };
+  }
+
+  return {
+    height: 1900,
+    margin: { l: 58, r: 20, t: 48, b: 40 },
+    domains: {
+      negative: { x: [0, 1], y: [0.86, 1] },
+      positive: { x: [0, 1], y: [0.66, 0.8] },
+      confusion: { x: [0.06, 0.94], y: [0.45, 0.59] },
+      gains: { x: [0, 1], y: [0.25, 0.39] },
+      fixedMetrics: { x: [0, 1], y: [0, 0.052] },
+      variableMetrics: { x: [0, 1], y: [0.07, 0.21] },
+    },
+  };
+};
+
+/**
+ * Anchor panel headings to their axes so they move with the responsive layout.
+ * @returns {object[]} Plotly heading annotations.
+ */
+const createPanelTitles = () => {
+  return [
+    { text: "<b>Actual negatives</b>", xref: "x domain", yref: "y domain" },
+    { text: "<b>Actual positives</b>", xref: "x3 domain", yref: "y3 domain" },
+    { text: "<b>Classification outcomes</b>", xref: "x2 domain", yref: "y2 domain" },
+    { text: "<b>Cumulative gain</b>", xref: "x4 domain", yref: "y4 domain" },
+  ].map((heading) => {
+    return {
+      ...heading,
+      x: 0,
+      y: 1.09,
+      xanchor: "left",
+      yanchor: "bottom",
+      showarrow: false,
+      font: { size: 13, color: "#243447" },
+    };
+  });
+};
+
+/**
  * Create the initial select-threshold Plotly figure with empty/updateable traces and layout.
  * We will fill the data with `updatePlot()` calls.
  * @param {SelectThresholdCfg} cfg - Plot config data
- * @returns {void}
+ * @returns {Promise<HTMLElement>} The initialized Plotly figure.
  */
 const createSelectThresholdPlot = (cfg) => {
   const {
@@ -193,6 +268,10 @@ const createSelectThresholdPlot = (cfg) => {
     dp,
     imageSavepath,
   } = cfg;
+
+  const { domains, height, margin } = getPlotPresentation(
+    document.querySelector("#plot-div").clientWidth,
+  );
 
   const TNDistribution = {
     x: [],
@@ -250,7 +329,7 @@ const createSelectThresholdPlot = (cfg) => {
     x: [],
     y: [],
     mode: "lines",
-    line: { dash: "dash", color: "#20313e" },
+    line: { dash: "dash", color: "#344c68", width: 1.5 },
     showlegend: false,
     xaxis: "x",
     yaxis: "y",
@@ -261,7 +340,7 @@ const createSelectThresholdPlot = (cfg) => {
     x: [],
     y: [],
     mode: "lines",
-    line: { dash: "dash", color: "#20313e" },
+    line: { dash: "dash", color: "#344c68", width: 1.5 },
     showlegend: false,
     xaxis: "x3",
     yaxis: "y3",
@@ -273,19 +352,19 @@ const createSelectThresholdPlot = (cfg) => {
     [2, 3],
   ];
   const confusionColorscale = [
-    [0, "pink"],
-    [0.25, "pink"],
+    [0, "salmon"],
     [0.25, "salmon"],
-    [0.5, "salmon"],
-    [0.5, "lightgreen"],
-    [0.75, "lightgreen"],
+    [0.25, "pink"],
+    [0.5, "pink"],
+    [0.5, "green"],
     [0.75, "green"],
-    [1, "green"],
+    [0.75, "lightgreen"],
+    [1, "lightgreen"],
   ];
   const confusionMatrix = {
     z: confusionZ,
-    x: ["0", "1"], // Predicted label
-    y: ["0", "1"], // True label
+    x: [0, 1], // Predicted label
+    y: [0, 1], // True label
     type: "heatmap",
     colorscale: confusionColorscale,
     showscale: false,
@@ -294,30 +373,34 @@ const createSelectThresholdPlot = (cfg) => {
     hoverinfo: "skip",
   };
 
-  const fixedMetricsTableHeader = ["Invariant Metric", "Value"];
+  const fixedMetricsTableHeader = ["Model metric", "Value"];
   const fixedMetricsTableCols = [
-    ["ROC AUC", "PR AUC"],
+    ["ROC AUC", "Average precision"],
     [rocAuc.toFixed(dp), prAuc.toFixed(dp)],
   ];
   const fixedMetricsTable = {
     type: "table",
     header: {
       values: fixedMetricsTableHeader,
-      fill: { color: "lightgrey" },
-      align: "center",
+      fill: { color: "#edf2f8" },
+      line: { color: "#dfe5ed", width: 1 },
+      align: ["left", "right"],
+      font: { size: 12, color: "#344c68" },
+      height: 28,
     },
     cells: {
       values: fixedMetricsTableCols,
       fill: { color: "white" },
-      align: "center",
+      line: { color: "#e8edf3", width: 1 },
+      align: ["left", "right"],
+      font: { size: 12, color: "#243447" },
+      height: 28,
     },
-    domain: {
-      x: [0.78, 1],
-      y: [0.475, 0.675],
-    },
+    columnwidth: [1.8, 1],
+    domain: domains.fixedMetrics,
   };
 
-  const variableMetricsTableHeader = ["Metric", "Value"];
+  const variableMetricsTableHeader = ["Threshold metric", "Value"];
   const variableMetricsTableCols = [
     ["Accuracy", "Balanced Accuracy", "Recall", "Precision", "FPR", "F4"],
     ["--", "--", "--", "--", "--", "--"],
@@ -326,18 +409,22 @@ const createSelectThresholdPlot = (cfg) => {
     type: "table",
     header: {
       values: variableMetricsTableHeader,
-      fill: { color: "lightgrey" },
-      align: "center",
+      fill: { color: "#edf2f8" },
+      line: { color: "#dfe5ed", width: 1 },
+      align: ["left", "right"],
+      font: { size: 12, color: "#344c68" },
+      height: 28,
     },
     cells: {
       values: variableMetricsTableCols,
       fill: { color: "white" },
-      align: "center",
+      line: { color: "#e8edf3", width: 1 },
+      align: ["left", "right"],
+      font: { size: 12, color: "#243447" },
+      height: 28,
     },
-    domain: {
-      x: [0.78, 1],
-      y: [0.68, 1],
-    },
+    columnwidth: [1.8, 1],
+    domain: domains.variableMetrics,
   };
 
   const gainsCurve = {
@@ -345,19 +432,18 @@ const createSelectThresholdPlot = (cfg) => {
     y: yGains,
     mode: "lines",
     name: "",
-    line: { width: 3, color: "#20C5FF", simplify: true },
+    line: { width: 2.5, color: "#3479b8", simplify: true },
     showlegend: false,
     xaxis: "x4",
     yaxis: "y4",
     customdata: gainsThresholds,
     // Plotly replaces %{...} placeholders when rendering hover text.
-    // eslint-disable-next-line unicorn/no-incorrect-template-string-interpolation
-    hovertemplate: `Proportion of Papers Examined: %{x}
-      <br>Proportion of Positives Found: %{y:.4f}
-      <br>Decision Threshold: %{customdata:.4f}`,
+    hovertemplate: `Items reviewed: %{x:.1%}
+      <br>Recall: %{y:.1%}
+      <br>Threshold: %{customdata:.4f}<extra></extra>`,
     hoverlabel: {
       bgcolor: "white",
-      bordercolor: "#20C5FF",
+      bordercolor: "#3479b8",
       font: { color: "black" },
     },
     legendgroup: "",
@@ -367,7 +453,7 @@ const createSelectThresholdPlot = (cfg) => {
     x: [],
     y: [],
     mode: "lines",
-    line: { color: "grey" },
+    line: { color: "#8293a7", width: 1, dash: "dot" },
     showlegend: false,
     xaxis: "x4",
     yaxis: "y4",
@@ -378,7 +464,7 @@ const createSelectThresholdPlot = (cfg) => {
     x: [],
     y: [],
     mode: "lines",
-    line: { color: "grey" },
+    line: { color: "#8293a7", width: 1, dash: "dot" },
     showlegend: false,
     xaxis: "x4",
     yaxis: "y4",
@@ -394,7 +480,7 @@ const createSelectThresholdPlot = (cfg) => {
       y0: -0.5,
       x1: 1.5,
       y1: 1.5,
-      line: { color: "black", width: 2 },
+      line: { color: "white", width: 2 },
     },
     {
       type: "line",
@@ -404,7 +490,7 @@ const createSelectThresholdPlot = (cfg) => {
       y0: 0.5,
       x1: 1.5,
       y1: 0.5,
-      line: { color: "black", width: 1.5 },
+      line: { color: "white", width: 2 },
     },
     {
       type: "line",
@@ -414,7 +500,7 @@ const createSelectThresholdPlot = (cfg) => {
       y0: -0.5,
       x1: 0.5,
       y1: 1.5,
-      line: { color: "black", width: 1.5 },
+      line: { color: "white", width: 2 },
     },
   ];
 
@@ -442,81 +528,84 @@ const createSelectThresholdPlot = (cfg) => {
   data[traceToIndex.get("gainsVerticalProportionLine")] = gainsVerticalProportionLine;
   data[traceToIndex.get("gainsHorizontalRecallLine")] = gainsHorizontalRecallLine;
 
-  //  Row=1 Col=1 => negative distribution   (xaxis='x',   yaxis='y')
-  //  Row=1 Col=2 => confusion matrix + table(xaxis='x2',  yaxis='y2')
-  //  Row=2 Col=1 => positive distribution   (xaxis='x3',  yaxis='y3')
-  //  Row=2 Col=2 => gains plot              (xaxis='x4',  yaxis='y4')
+  const densityAxis = {
+    range: [
+      minScore - SCORE_AXIS_PADDING_FRACTION * scoreRange,
+      maxScore + SCORE_AXIS_PADDING_FRACTION * scoreRange,
+    ],
+    zeroline: false,
+    gridcolor: "#edf1f5",
+    automargin: true,
+    fixedrange: true,
+  };
+  const densityYAxis = {
+    title: { text: "Density", standoff: 10 },
+    range: [0, maxDistributionY * DENSITY_Y_MAX_FACTOR],
+    gridcolor: "#edf1f5",
+    zeroline: false,
+    automargin: true,
+    fixedrange: true,
+  };
   const layout = {
-    margin: {
-      b: 40,
-      t: 20,
+    height,
+    margin,
+    autosize: true,
+    font: {
+      family: "system-ui, -apple-system, Segoe UI, sans-serif",
+      size: 12,
+      color: "#344c68",
     },
-    grid: {
-      rows: 2,
-      columns: 2,
-      pattern: "independent",
-      roworder: "top to bottom",
-    },
-    xaxis: {
-      domain: [0, 0.45],
-      anchor: "y",
-      range: [
-        minScore - SCORE_AXIS_PADDING_FRACTION * scoreRange,
-        maxScore + SCORE_AXIS_PADDING_FRACTION * scoreRange,
-      ],
-      zeroline: false,
-    },
-    yaxis: {
-      domain: [0.55, 1],
-      anchor: "x",
-      title: { text: "Actual Negatives" },
-      range: [0, maxDistributionY * DENSITY_Y_MAX_FACTOR],
-    },
+    showlegend: false,
+    xaxis: { ...densityAxis, domain: domains.negative.x, anchor: "y" },
+    yaxis: { ...densityYAxis, domain: domains.negative.y, anchor: "x" },
     xaxis2: {
-      domain: [0.55, 0.775],
+      domain: domains.confusion.x,
       anchor: "y2",
+      title: { text: "Predicted class", standoff: 8 },
+      range: [-0.5, 1.5],
+      tickvals: [0, 1],
+      ticktext: ["Negative", "Positive"],
       showgrid: false,
       zeroline: false,
-      showspikes: false,
-      showticklabels: false,
-      ticks: "",
+      fixedrange: true,
     },
     yaxis2: {
-      domain: [0.55, 1],
+      domain: domains.confusion.y,
       anchor: "x2",
+      title: { text: "Actual class", standoff: 8 },
+      range: [1.5, -0.5],
+      tickvals: [0, 1],
+      ticktext: ["Negative", "Positive"],
       showgrid: false,
       zeroline: false,
-      showspikes: false,
-      showticklabels: false,
-      ticks: "",
+      fixedrange: true,
     },
     xaxis3: {
-      domain: [0, 0.45],
+      ...densityAxis,
+      domain: domains.positive.x,
       anchor: "y3",
-      title: "Predicted Probability",
-      range: [
-        minScore - SCORE_AXIS_PADDING_FRACTION * scoreRange,
-        maxScore + SCORE_AXIS_PADDING_FRACTION * scoreRange,
-      ],
-      zeroline: false,
+      title: { text: "Model score", standoff: 10 },
     },
-    yaxis3: {
-      domain: [0, 0.45],
-      anchor: "x3",
-      title: { text: "Actual Positives" },
-      range: [0, maxDistributionY * DENSITY_Y_MAX_FACTOR],
-    },
+    yaxis3: { ...densityYAxis, domain: domains.positive.y, anchor: "x3" },
     xaxis4: {
-      domain: [0.55, 1],
+      domain: domains.gains.x,
       anchor: "y4",
-      title: { text: "Proportion of Papers Examined" },
+      title: { text: "Items reviewed", standoff: 10 },
       range: [-0.02, 1.02],
+      tickformat: ".0%",
+      gridcolor: "#edf1f5",
+      zeroline: false,
+      fixedrange: true,
     },
     yaxis4: {
-      domain: [0, 0.45],
+      domain: domains.gains.y,
       anchor: "x4",
-      title: { text: "Recall" },
+      title: { text: "Recall", standoff: 10 },
       range: [-0.02, 1.02],
+      tickformat: ".0%",
+      gridcolor: "#edf1f5",
+      zeroline: false,
+      fixedrange: true,
     },
     annotations: [],
     shapes: confusionMatrixOutline,
@@ -528,17 +617,19 @@ const createSelectThresholdPlot = (cfg) => {
     scrollZoom: false,
     modeBarButtons: [["toImage"]],
     displaylogo: false,
-    displayModeBar: "always",
+    displayModeBar: true,
     toImageButtonOptions: {
       format: "png",
       filename: imageSavepath,
-      height: 720,
-      width: 1480,
+      // eslint-disable-next-line unicorn/no-null -- Plotly uses null for the current graph size.
+      height: null,
+      // eslint-disable-next-line unicorn/no-null -- Plotly uses null for the current graph size.
+      width: null,
       scale: 3,
     },
   };
 
-  Plotly.newPlot("plot-div", data, layout, plotlySettings);
+  return Plotly.newPlot("plot-div", data, layout, plotlySettings);
 };
 
 /**
@@ -630,10 +721,20 @@ const splitPositiveTraceByClassification = (xP, yP, threshold) => {
  * @returns {void}
  */
 const updateInputElements = (ui, threshold, metrics, dp) => {
-  ui.recallInput.value = (100 * metrics.TPR).toFixed(dp);
-  ui.thresholdInput.value = threshold.toFixed(dp);
-  ui.thresholdSlider.value = threshold.toFixed(dp);
+  ui.recallInput.value = (100 * metrics.TPR).toFixed(2);
+  // Keep rounding from placing an endpoint just outside the input's valid range.
+  const roundedThreshold = Number(threshold.toFixed(dp));
+  const boundedThreshold = Math.min(
+    Number(ui.thresholdInput.max),
+    Math.max(Number(ui.thresholdInput.min), roundedThreshold),
+  );
+  ui.thresholdInput.value = String(boundedThreshold);
+  ui.thresholdSlider.value = String(threshold);
   ui.thresholdDisplay.textContent = threshold.toFixed(dp);
+
+  ui.recallInput.setAttribute("aria-invalid", "false");
+  ui.thresholdInput.setAttribute("aria-invalid", "false");
+  ui.inputStatus.textContent = "";
 
   ui.recallInput.dataset.committedValue = ui.recallInput.value;
   ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
@@ -733,7 +834,7 @@ const computeGainsHozVerLines = (threshold, metrics, posScores, negScores) => {
  * @param {number} threshold - decision threshold
  * @param {SelectThresholdCfg} cfg - plot config and data
  * @param {SelectThresholdUI} ui - UI elements
- * @returns {void}
+ * @returns {Promise<HTMLElement>} The updated Plotly figure.
  */
 const updatePlot = (threshold, cfg, ui) => {
   const {
@@ -776,51 +877,44 @@ const updatePlot = (threshold, cfg, ui) => {
     computeGainsHozVerLines(threshold, metrics, posScores, negScores);
 
   const FPConfusionAnnotation = {
-    text: `FP: ${metrics.FP}`,
-    x: "0",
-    y: "0",
+    text: `FP<br><b>${metrics.FP.toLocaleString()}</b>`,
+    x: 1,
+    y: 0,
     xref: "x2",
     yref: "y2",
     showarrow: false,
     font: { color: "white", size: 14 },
   };
   const TNConfusionAnnotation = {
-    text: `TN: ${metrics.TN}`,
-    x: "1",
-    y: "0",
+    text: `TN<br><b>${metrics.TN.toLocaleString()}</b>`,
+    x: 0,
+    y: 0,
     xref: "x2",
     yref: "y2",
     showarrow: false,
     font: { color: "white", size: 14 },
   };
   const TPConfusionAnnotation = {
-    text: `TP: ${metrics.TP}`,
-    x: "0",
-    y: "1",
+    text: `TP<br><b>${metrics.TP.toLocaleString()}</b>`,
+    x: 1,
+    y: 1,
     xref: "x2",
     yref: "y2",
     showarrow: false,
     font: { color: "white", size: 14 },
   };
   const FNConfusionAnnotation = {
-    text: `FN: ${metrics.FN}`,
-    x: "1",
-    y: "1",
+    text: `FN<br><b>${metrics.FN.toLocaleString()}</b>`,
+    x: 0,
+    y: 1,
     xref: "x2",
     yref: "y2",
     showarrow: false,
     font: { color: "white", size: 14 },
   };
-  const distributionThresholdLineAnnotation = {
-    text: "Predicted Negative        Predicted Positive",
-    y: 0.5,
-    yref: "paper",
-    x: threshold,
-    visible: true,
-    showarrow: false,
-  };
   const TNDistributionAnnotation = {
     text: "TN",
+    xref: "x",
     y: 0.97,
     yref: "y domain",
     x: minScore + DISTRIBUTION_LABEL_INSET_FRACTION * scoreRange,
@@ -830,6 +924,7 @@ const updatePlot = (threshold, cfg, ui) => {
   };
   const FPDistributionAnnotation = {
     text: "FP",
+    xref: "x",
     y: 0.97,
     yref: "y domain",
     x: minScore + (1 - DISTRIBUTION_LABEL_INSET_FRACTION) * scoreRange,
@@ -839,6 +934,7 @@ const updatePlot = (threshold, cfg, ui) => {
   };
   const FNDistributionAnnotation = {
     text: "FN",
+    xref: "x3",
     y: 0.97,
     yref: "y3 domain",
     x: minScore + DISTRIBUTION_LABEL_INSET_FRACTION * scoreRange,
@@ -848,6 +944,7 @@ const updatePlot = (threshold, cfg, ui) => {
   };
   const TPDistributionAnnotation = {
     text: "TP",
+    xref: "x3",
     y: 0.97,
     yref: "y3 domain",
     x: minScore + (1 - DISTRIBUTION_LABEL_INSET_FRACTION) * scoreRange,
@@ -855,45 +952,37 @@ const updatePlot = (threshold, cfg, ui) => {
     font: { size: 14 },
     showarrow: false,
   };
-  const gainsVerticalProportionLineAnnotation = {
-    text: proportionAbove.toFixed(dp),
+  const gainsSelectionAnnotation = {
+    text: `Review ${(100 * proportionAbove).toFixed(1)}% · Recall ${(
+      100 * metrics.TPR
+    ).toFixed(1)}%`,
     x: proportionAbove,
-    xref: "x4 domain",
-    yref: "y4 domain",
-    y: -0.06,
-    font: { size: 12 },
+    y: metrics.TPR,
+    xref: "x4",
+    yref: "y4",
+    xanchor: proportionAbove > 0.5 ? "right" : "left",
+    yanchor: metrics.TPR > 0.8 ? "top" : "bottom",
+    xshift: proportionAbove > 0.5 ? -8 : 8,
+    yshift: metrics.TPR > 0.8 ? -8 : 8,
+    font: { size: 11, color: "#344c68" },
     showarrow: false,
     bgcolor: "white",
-    bordercolor: "black",
+    bordercolor: "#dfe5ed",
     borderwidth: 1,
-    borderpad: 3,
-  };
-  const gainsHorizontalRecallLineAnnotation = {
-    text: metrics.TPR.toFixed(dp),
-    x: -0.07,
-    xref: "x4 domain",
-    yref: "y4 domain",
-    y: metrics.TPR.toFixed(2),
-    font: { size: 12 },
-    showarrow: false,
-    bgcolor: "white",
-    bordercolor: "black",
-    borderwidth: 1,
-    borderpad: 3,
+    borderpad: 5,
   };
 
   const annotationUpdates = [
+    ...createPanelTitles(),
     FPConfusionAnnotation,
     TNConfusionAnnotation,
     TPConfusionAnnotation,
     FNConfusionAnnotation,
-    distributionThresholdLineAnnotation,
     TNDistributionAnnotation,
     FPDistributionAnnotation,
     FNDistributionAnnotation,
     TPDistributionAnnotation,
-    gainsVerticalProportionLineAnnotation,
-    gainsHorizontalRecallLineAnnotation,
+    gainsSelectionAnnotation,
   ];
 
   const traceXYUpdates = [
@@ -905,32 +994,28 @@ const updatePlot = (threshold, cfg, ui) => {
     { name: "PosDistributionThresholdLine", x: linePosX, y: linePosY },
     { name: "gainsVerticalProportionLine", x: gainsVx, y: gainsVy },
     { name: "gainsHorizontalRecallLine", x: gainsHx, y: gainsHy },
+    {
+      name: "variableMetricsTable",
+      cells: [variableTableMetricNames, variableTableMetrics],
+    },
   ];
 
-  const indices = [];
-  const xArr = [];
-  const yArr = [];
-  for (const update of traceXYUpdates) {
-    indices.push(traceToIndex.get(update.name));
-    xArr.push(update.x);
-    yArr.push(update.y);
-  }
+  updateInputElements(ui, threshold, metrics, dp);
 
-  Plotly.restyle("plot-div", { x: xArr, y: yArr }, indices);
+  const x = traceXYUpdates.map((update) => update.x);
+  const y = traceXYUpdates.map((update) => update.y);
 
-  Plotly.restyle(
+  // Undefined entries leave unrelated trace properties unchanged in Plotly.update.
+  return Plotly.update(
     "plot-div",
     {
-      "cells.values": [[variableTableMetricNames, variableTableMetrics]],
+      x,
+      y,
+      "cells.values": traceXYUpdates.map((update) => update.cells),
     },
-    [traceToIndex.get("variableMetricsTable")],
+    { annotations: annotationUpdates },
+    traceXYUpdates.map((update) => traceToIndex.get(update.name)),
   );
-
-  Plotly.relayout("plot-div", {
-    annotations: annotationUpdates,
-  });
-
-  updateInputElements(ui, threshold, metrics, dp);
 };
 
 /**
@@ -965,97 +1050,119 @@ const updatePlotWRecall = (recallPct, cfg, ui) => {
 
   const idx = Math.floor(posScores.length - clippedRecallFrac * posScores.length);
 
-  const threshold = idx === posScores.length ? Infinity : posScores[idx];
+  const threshold =
+    idx === posScores.length ? Number(ui.thresholdSlider.max) : posScores[idx];
 
   updatePlot(threshold, cfg, ui);
 };
 
 /**
- * Temporarily clear an input’s value on focus.
- * @param {FocusEvent} e - focus event
+ * Select an input's existing value without hiding the currently applied setting.
+ * @param {FocusEvent} e - Focus event.
  * @returns {void}
  */
 const handleFocus = (e) => {
-  const inputElement = e.target;
-
-  if (inputElement.value === inputElement.dataset.committedValue) {
-    inputElement.value = "";
-  }
+  e.target.select();
 };
 
 /**
- * Restore an input’s original value on blur.
- * @param {FocusEvent} e - the blur event
- * @returns {void}
- */
-const handleRevertOnBlur = (e) => {
-  const inputElement = e.target;
-  inputElement.value = inputElement.dataset.committedValue;
-};
-
-/**
- * Builds an input handler for the threshold slider.
+ * Limit slider rendering to one update per animation frame.
  * @param {SelectThresholdCfg} cfg - Plot configuration/data.
  * @param {SelectThresholdUI} ui - UI elements.
- * @returns {(e: Event) => void} Input handler for the threshold slider.
+ * @returns {() => void} Input handler for the threshold slider.
  */
 const makeHandleSliderInput = (cfg, ui) => {
+  let frame = 0;
   return () => {
-    const threshold = ui.thresholdSlider.valueAsNumber;
-    // UI is updated within updatePlot
-    updatePlot(threshold, cfg, ui);
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      updatePlot(ui.thresholdSlider.valueAsNumber, cfg, ui);
+    });
   };
 };
 
 /**
- * Builds a keydown handler for the recall input.
+ * Apply a numeric field on Enter or change, with inline validation feedback.
+ * Escape restores the last applied value.
  * @param {SelectThresholdCfg} cfg - Plot configuration/data.
- * @param {SelectThresholdUI} ui - UI element references.
- * @returns {(e: KeyboardEvent) => void} Keydown handler for the recall input.
+ * @param {SelectThresholdUI} ui - UI elements.
+ * @param {boolean} isRecall - Whether the field selects a target recall.
+ * @returns {(e: Event | KeyboardEvent) => void} Numeric field event handler.
  */
-const makeHandleRecallInput = (cfg, ui) => {
+const makeHandleNumberInput = (cfg, ui, isRecall) => {
+  const input = isRecall ? ui.recallInput : ui.thresholdInput;
   return (e) => {
-    if (e.key !== "Enter") return;
+    if (e.type === "keydown") {
+      if (e.key === "Escape") {
+        input.value = input.dataset.committedValue;
+        input.setAttribute("aria-invalid", "false");
+        ui.inputStatus.textContent = "";
+        return;
+      }
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+    }
 
-    if (ui.recallInput.checkValidity()) {
-      const recallPct = ui.recallInput.valueAsNumber;
-      // UI is updated within updatePlot
-      updatePlotWRecall(recallPct, cfg, ui);
+    if (!Number.isFinite(input.valueAsNumber) || !input.checkValidity()) {
+      input.setAttribute("aria-invalid", "true");
+      let message = "Enter a recall between 0 and 100%.";
+      if (!isRecall) {
+        const minimum = Number(input.min).toFixed(cfg.dp);
+        const maximum = Number(input.max).toFixed(cfg.dp);
+        message = `Enter a threshold between ${minimum} and ${maximum}.`;
+      }
+      ui.inputStatus.textContent = message;
       return;
     }
 
-    if (
-      ui.recallInput.validity.rangeUnderflow ||
-      ui.recallInput.validity.rangeOverflow
-    ) {
-      const recallPct = clip(ui.recallInput.valueAsNumber, 0, 100);
-      // UI is updated within updatePlot
-      updatePlotWRecall(recallPct, cfg, ui);
+    if (isRecall) {
+      updatePlotWRecall(input.valueAsNumber, cfg, ui);
+    } else {
+      updatePlot(input.valueAsNumber, cfg, ui);
     }
-
-    ui.recallInput.value = ui.recallInput.dataset.committedValue;
   };
 };
 
 /**
- * Builds a keydown handler for the threshold input.
+ * Reposition panels when their container changes width, including browser resizing.
+ * Only width changes trigger rendering, so changing plot height cannot create a loop.
  * @param {SelectThresholdCfg} cfg - Plot configuration/data.
- * @param {SelectThresholdUI} ui - UI element references.
- * @returns {(e: KeyboardEvent) => void} Keydown handler for the threshold input.
+ * @param {SelectThresholdUI} ui - UI elements.
+ * @returns {void}
  */
-const makeHandleThresholdInput = (cfg, ui) => {
-  return (e) => {
-    if (e.key !== "Enter") return;
-
-    if (ui.thresholdInput.checkValidity()) {
-      const threshold = ui.thresholdInput.valueAsNumber;
-      // UI is updated within updatePlot
-      updatePlot(threshold, cfg, ui);
-      return;
-    }
-
-    ui.thresholdInput.value = ui.thresholdInput.dataset.committedValue;
-  };
+const initResponsiveLayout = (cfg, ui) => {
+  let previousWidth = Math.round(ui.plotDiv.clientWidth);
+  let frame = 0;
+  const observer = new ResizeObserver(([entry]) => {
+    const width = Math.round(entry.contentRect.width);
+    if (width === previousWidth || width === 0) return;
+    previousWidth = width;
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      const { domains, height, margin } = getPlotPresentation(width);
+      Plotly.update(
+        "plot-div",
+        { domain: [domains.fixedMetrics, domains.variableMetrics] },
+        {
+          height,
+          margin,
+          "xaxis.domain": domains.negative.x,
+          "yaxis.domain": domains.negative.y,
+          "xaxis2.domain": domains.confusion.x,
+          "yaxis2.domain": domains.confusion.y,
+          "xaxis3.domain": domains.positive.x,
+          "yaxis3.domain": domains.positive.y,
+          "xaxis4.domain": domains.gains.x,
+          "yaxis4.domain": domains.gains.y,
+        },
+        [
+          cfg.traceToIndex.get("fixedMetricsTable"),
+          cfg.traceToIndex.get("variableMetricsTable"),
+        ],
+      );
+    });
+  });
+  observer.observe(ui.plotDiv);
 };
 
 /**
@@ -1102,6 +1209,9 @@ const initUI = () => {
     thresholdInput: document.querySelector("#threshold-input"),
     thresholdSlider: document.querySelector("#threshold-slider"),
     thresholdDisplay: document.querySelector("#threshold-value"),
+    inputStatus: document.querySelector("#input-status"),
+    resetButton: document.querySelector("#threshold-reset"),
+    plotDiv: document.querySelector("#plot-div"),
   };
 };
 
@@ -1114,18 +1224,20 @@ const initUI = () => {
 const initEventListeners = (cfg, ui) => {
   ui.thresholdSlider.addEventListener("input", makeHandleSliderInput(cfg, ui));
 
-  ui.thresholdInput.addEventListener("keydown", makeHandleThresholdInput(cfg, ui));
+  const thresholdHandler = makeHandleNumberInput(cfg, ui, false);
+  const recallHandler = makeHandleNumberInput(cfg, ui, true);
+  ui.thresholdInput.addEventListener("keydown", thresholdHandler);
+  ui.thresholdInput.addEventListener("change", thresholdHandler);
   ui.thresholdInput.addEventListener("focus", handleFocus);
-  ui.thresholdInput.addEventListener("blur", handleRevertOnBlur);
-  ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
-
-  ui.recallInput.addEventListener("keydown", makeHandleRecallInput(cfg, ui));
+  ui.recallInput.addEventListener("keydown", recallHandler);
+  ui.recallInput.addEventListener("change", recallHandler);
   ui.recallInput.addEventListener("focus", handleFocus);
-  ui.recallInput.addEventListener("blur", handleRevertOnBlur);
-  ui.recallInput.dataset.committedValue = ui.recallInput.value;
+  ui.resetButton.addEventListener("click", () => {
+    updatePlot(Number(ui.thresholdSlider.defaultValue), cfg, ui);
+  });
 };
 
-const main = () => {
+const main = async () => {
   const loader = document.querySelector("#plot-loading");
 
   if (!("Plotly" in globalThis)) {
@@ -1134,15 +1246,29 @@ const main = () => {
     return;
   }
 
-  const cfg = initConfig();
-  const ui = initUI();
-  initEventListeners(cfg, ui);
-  const initThreshold = ui.thresholdSlider.valueAsNumber;
+  try {
+    const cfg = initConfig();
+    const ui = initUI();
+    document.querySelector("#threshold-min").textContent = Number(
+      ui.thresholdSlider.min,
+    ).toFixed(cfg.dp);
+    document.querySelector("#threshold-max").textContent = Number(
+      ui.thresholdSlider.max,
+    ).toFixed(cfg.dp);
 
-  createSelectThresholdPlot(cfg);
-  updatePlot(initThreshold, cfg, ui);
-
-  loader.hidden = true;
+    await createSelectThresholdPlot(cfg);
+    await updatePlot(ui.thresholdSlider.valueAsNumber, cfg, ui);
+    initEventListeners(cfg, ui);
+    initResponsiveLayout(cfg, ui);
+  } catch {
+    const message = document.querySelector("#cdn-fail");
+    message.textContent =
+      "The plot could not be displayed. Try reloading or regenerating the HTML file.";
+    message.hidden = false;
+  } finally {
+    loader.hidden = true;
+  }
 };
 
-main();
+// eslint-disable-next-line n/no-top-level-await -- This script runs as a browser module.
+await main();
