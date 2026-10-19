@@ -28,8 +28,10 @@
 
   background: #25b09b;
 
+  /* stylelint-disable defensive-css/require-custom-property-fallback */
   -webkit-mask: var(--loader-mask);
   mask: var(--loader-mask);
+  /* stylelint-enable defensive-css/require-custom-property-fallback */
   -webkit-mask-composite: source-out;
   mask-composite: subtract;
 

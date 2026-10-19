@@ -16,6 +16,9 @@ export default {
         ignore: ["after-comment", "stylelint-commands"],
       },
     ],
+    // Maintain browser compatibility prefixes manually without Autoprefixer.
+    // eslint-disable-next-line unicorn/no-null -- Stylelint uses null to disable rules.
+    "property-no-vendor-prefix": null,
     "plugin/no-unsupported-browser-features": true,
     "defensive-css/no-accidental-hover": true,
     "defensive-css/no-mixed-vendor-prefixes": true,
