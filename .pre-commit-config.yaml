@@ -63,6 +63,12 @@ repos:
         language: system
         files: \.(?:[cm]?js|jsx|tsx?|html?)$
         args: ["--max-warnings=0", "--no-warn-ignored"]
+      - id: es-check
+        name: JavaScript browser compatibility (ES Check)
+        entry: npm run lint:compat
+        language: system
+        files: ^(?:src/.*\.js|package(?:-lock)?\.json)$
+        pass_filenames: false
       - id: stylelint
         name: Stylelint
         entry: npm exec --offline --no -- stylelint

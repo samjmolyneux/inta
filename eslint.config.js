@@ -1,4 +1,5 @@
 import * as pluginRegexp from "eslint-plugin-regexp";
+import compat from "eslint-plugin-compat";
 import globals from "globals";
 import { defineConfig } from "eslint/config";
 import html from "@html-eslint/eslint-plugin";
@@ -81,6 +82,12 @@ export default defineConfig([
       // Keep traditional leading asterisks in JSDoc comments.
       "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
     },
+  },
+
+  {
+    // Check browser APIs only in JavaScript embedded in the generated plots.
+    files: ["src/**/*.js"],
+    extends: [compat.configs["flat/recommended"]],
   },
 
   {
