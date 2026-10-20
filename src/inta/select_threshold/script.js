@@ -6,11 +6,42 @@ const F4_BETA_SQUARED = 4 ** 2;
 
 // Keep the density plots' ranges and threshold lines aligned.
 const SCORE_AXIS_PADDING_FRACTION = 0.05;
-const DENSITY_Y_MAX_FACTOR = 1.1;
+// Leave headroom above the tallest density for the outcome labels.
+const DENSITY_Y_MAX_FACTOR = 1.2;
 
-// Place distribution labels 2.5% from each edge; hide them within a 4% segment.
-const DISTRIBUTION_LABEL_INSET_FRACTION = 0.025;
-const DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION = 0.04;
+// Outcome labels sit this far in from the left and right edges of each density panel.
+const OUTCOME_LABEL_INSET_FRACTION = 0.015;
+// Width in pixels reserved for an outcome label; the threshold line hides a label it would cross.
+const OUTCOME_LABEL_WIDTH_PX = 72;
+
+// Gap in pixels between the gains point and its readout.
+const GAINS_READOUT_OFFSET_PX = 10;
+// Approximate readout sizes in pixels, on one line or, on narrow charts, two.
+const GAINS_READOUT_SIZE_PX = {
+  wide: { width: 190, height: 26 },
+  compact: { width: 104, height: 42 },
+};
+// Charts narrower than this show the readout on two lines.
+const GAINS_COMPACT_WIDTH_PX = 480;
+// Approximate pixels taken by the gains chart's axis labels and titles.
+const GAINS_AXES_ALLOWANCE_PX = { x: 64, y: 52 };
+
+// Clear space in pixels kept either side of a confusion-matrix count.
+const CELL_COUNT_INSET_PX = 8;
+
+// Must match the max-width media query in style.css that stacks the three panels.
+const STACKED_LAYOUT_QUERY = "(max-width: 1000px)";
+// How the moved panels settle into their new places when the layout switches.
+const LAYOUT_ANIMATION_MS = 320;
+const LAYOUT_ANIMATION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+const LAYOUT_FADE_FROM_OPACITY = 0.25;
+const LAYOUT_FADE_SHIFT_PX = 14;
+const LAYOUT_FADE_STAGGER_MS = 50;
+
+const PLOT_FONT = {
+  family: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+  size: 12,
+};
 
 /**
  * @typedef {object} ClassificationMetrics
@@ -29,11 +60,15 @@ const DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION = 0.04;
 /**
  * Select-threshold plot configuration.
  * Loaded from #plot-config JSON, then augmented in initConfig().
+ * Note: Jinja renders this file, so avoid double braces in comments and code.
  * @typedef {object} SelectThresholdCfg
- * @property {Map<string, number>} traceToIndex - map from trace names to plotly data array indices
+ * @property {Map<string, number>} distributionTraceIndex - distribution trace name to index
+ * @property {Map<string, number>} gainsTraceIndex - gains trace name to index
+ * @property {Palette} palette - colours read from the stylesheet
  * @property {number} minScore - dataset min score
  * @property {number} maxScore - dataset max score
  * @property {number} scoreRange - convenience: maxScore - minScore
+ * @property {number[]} scoreAxisRange - [min, max] of the shared score axis
  * @property {number} maxDistributionY - y-axis max for distribution plots
  * @property {number[]} xN - negative density: x
  * @property {number[]} yN - negative density: y
@@ -46,8 +81,26 @@ const DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION = 0.04;
  * @property {number[]} gainsThresholds - threshold per gains point
  * @property {number} rocAuc - ROC AUC of model
  * @property {number} prAuc - PR AUC of model
- * @property {number} dp - decimal places for UI/labels
+ * @property {number} dp - decimal places for thresholds
+ * @property {number} currentThreshold - threshold currently shown
  * @property {string} imageSavepath - savepath to save image of plot when plotly save button clicked
+ */
+
+/**
+ * Colours shared by the charts and the HTML, read from the stylesheet.
+ * @typedef {object} Palette
+ * @property {string} ink - main text
+ * @property {string} chartInk - threshold line and axis titles
+ * @property {string} muted - tick labels and secondary text
+ * @property {string} border - card and annotation borders
+ * @property {string} grid - chart grid lines
+ * @property {string} surface - card background
+ * @property {string} accent - gains curve and its point
+ * @property {string} guide - dotted guide lines on the gains chart
+ * @property {string} tn - true negatives (correct, negative class)
+ * @property {string} fp - false positives (error, negative class)
+ * @property {string} fn - false negatives (error, positive class)
+ * @property {string} tp - true positives (correct, positive class)
  */
 
 /**
@@ -57,10 +110,14 @@ const DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION = 0.04;
  * @property {HTMLInputElement} recallInput - input for recall percentage
  * @property {HTMLInputElement} thresholdInput - input for decision threshold
  * @property {HTMLInputElement} thresholdSlider - range slider for decision threshold
- * @property {HTMLElement} thresholdDisplay - element displaying the formatted threshold text
  * @property {HTMLElement} inputStatus - validation feedback
  * @property {HTMLButtonElement} resetButton - restore the initial threshold
- * @property {HTMLElement} plotDiv - responsive Plotly container
+ * @property {HTMLElement} distributionPlot - container of the density chart
+ * @property {HTMLElement} gainsPlot - container of the gains chart
+ * @property {Map<string, HTMLElement>} text - elements whose text shows a live value
+ * @property {Map<string, HTMLElement>} metricValues - metric name to its table cell
+ * @property {HTMLTableElement} matrix - confusion matrix table
+ * @property {HTMLElement[]} cellCounts - confusion-matrix counts, in TN, FP, FN, TP order
  */
 
 /**
@@ -82,19 +139,17 @@ const DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION = 0.04;
  */
 
 /**
- * Visibility flags for distribution annotations.
- * @typedef {object} DistributionAnnotationVisibility
- * @property {boolean} distributionTNAnnotationVisible - show TN label
- * @property {boolean} distributionFNAnnotationVisible - show FN label
- * @property {boolean} distributionFPAnnotationVisible - show FP label
- * @property {boolean} distributionTPAnnotationVisible - show TP label
+ * Layout pieces drawn over a chart at a threshold.
+ * @typedef {object} ChartOverlays
+ * @property {object[]} annotations - text labels
+ * @property {object[]} [shapes] - lines
  */
 
 /**
- * Preformatted values for the variable metrics table.
- * @typedef {object} VariableTableTraceData
- * @property {string[]} variableTableMetricNames - metric names
- * @property {string[]} variableTableMetrics - formatted metric values
+ * Size of a chart container in pixels.
+ * @typedef {object} PlotSize
+ * @property {number} width - container width
+ * @property {number} height - container height
  */
 
 /**
@@ -174,453 +229,80 @@ const computeClassificationMetrics = (threshold, posScores, negScores) => {
 };
 
 /**
- * Allocate enough space for the plots and table rows at each viewport size.
- * Domains use Plotly's normalized paper coordinates; tall layouts scroll vertically.
- * @param {number} width - Available plot width in pixels.
- * @returns {object} Plot height, margins, and panel domains.
+ * Read the chart colours from the stylesheet's custom properties.
+ * @returns {Palette} Colours, falling back to the defaults if a property is missing.
  */
-const getPlotPresentation = (width) => {
-  if (width >= 1180) {
-    return {
-      height: 800,
-      margin: { l: 72, r: 32, t: 48, b: 64 },
-      domains: {
-        negative: { x: [0, 0.42], y: [0.59, 1] },
-        positive: { x: [0, 0.42], y: [0.02, 0.43] },
-        confusion: { x: [0.54, 0.74], y: [0.61, 0.98] },
-        gains: { x: [0.55, 1], y: [0.02, 0.41] },
-        fixedMetrics: { x: [0.79, 1], y: [0.47, 0.6] },
-        variableMetrics: { x: [0.79, 1], y: [0.66, 1] },
-      },
-    };
-  }
-
-  if (width >= 720) {
-    return {
-      height: 1050,
-      margin: { l: 66, r: 24, t: 48, b: 64 },
-      domains: {
-        negative: { x: [0, 0.43], y: [0.74, 1] },
-        positive: { x: [0, 0.43], y: [0.37, 0.63] },
-        confusion: { x: [0.59, 0.94], y: [0.74, 1] },
-        gains: { x: [0.57, 1], y: [0.37, 0.63] },
-        fixedMetrics: { x: [0.57, 1], y: [0.12, 0.27] },
-        variableMetrics: { x: [0, 0.49], y: [0.015, 0.27] },
-      },
-    };
-  }
-
+const readPalette = () => {
+  const styles = getComputedStyle(document.documentElement);
+  const read = (property, fallback) =>
+    styles.getPropertyValue(property).trim() || fallback;
   return {
-    height: 1900,
-    margin: { l: 58, r: 20, t: 48, b: 40 },
-    domains: {
-      negative: { x: [0, 1], y: [0.86, 1] },
-      positive: { x: [0, 1], y: [0.66, 0.8] },
-      confusion: { x: [0.06, 0.94], y: [0.45, 0.59] },
-      gains: { x: [0, 1], y: [0.25, 0.39] },
-      fixedMetrics: { x: [0, 1], y: [0, 0.052] },
-      variableMetrics: { x: [0, 1], y: [0.07, 0.21] },
-    },
+    ink: read("--ink", "#243447"),
+    chartInk: read("--chart-ink", "#344c68"),
+    muted: read("--muted", "#68788b"),
+    border: read("--border", "#dfe5ed"),
+    grid: read("--grid", "#edf1f5"),
+    surface: read("--surface", "#fff"),
+    accent: read("--accent", "#3479b8"),
+    guide: read("--guide", "#8293a7"),
+    tn: read("--tn", "salmon"),
+    fp: read("--fp", "pink"),
+    fn: read("--fn", "lightgreen"),
+    tp: read("--tp", "green"),
   };
 };
 
 /**
- * Anchor panel headings to their axes so they move with the responsive layout.
- * @returns {object[]} Plotly heading annotations.
+ * Format a fraction as a percentage with one decimal place.
+ * @param {number} fraction - Value between 0 and 1.
+ * @returns {string} Formatted percentage, e.g. "79.0%".
  */
-const createPanelTitles = () => {
-  return [
-    { text: "<b>Actual negatives</b>", xref: "x domain", yref: "y domain" },
-    { text: "<b>Actual positives</b>", xref: "x3 domain", yref: "y3 domain" },
-    { text: "<b>Classification outcomes</b>", xref: "x2 domain", yref: "y2 domain" },
-    { text: "<b>Cumulative gain</b>", xref: "x4 domain", yref: "y4 domain" },
-  ].map((heading) => {
-    return {
-      ...heading,
-      x: 0,
-      y: 1.09,
-      xanchor: "left",
-      yanchor: "bottom",
-      showarrow: false,
-      font: { size: 13, color: "#243447" },
-    };
-  });
-};
+const formatPercent = (fraction) => `${(100 * fraction).toFixed(1)}%`;
+
+// Counts from this size up are shown in compact form, e.g. 596,039 as "596K".
+const COMPACT_COUNT_FROM = 1000;
+// Formats a count to exactly three significant figures, e.g. 1,598,380 as "1.60M".
+// An empty locale list means the viewer's own language.
+const compactNumber = new Intl.NumberFormat([], {
+  notation: "compact",
+  minimumSignificantDigits: 3,
+  maximumSignificantDigits: 3,
+});
 
 /**
- * Create the initial select-threshold Plotly figure with empty/updateable traces and layout.
- * We will fill the data with `updatePlot()` calls.
- * @param {SelectThresholdCfg} cfg - Plot config data
- * @returns {Promise<HTMLElement>} The initialized Plotly figure.
+ * Format a count for a confusion-matrix cell, in compact form from a thousand up.
+ * Smaller counts stay whole numbers, since three figures would turn 42 into "42.0".
+ * @param {number} count - Number of items.
+ * @returns {string} Formatted count, e.g. "42", "40.2K" or "1.60M".
  */
-const createSelectThresholdPlot = (cfg) => {
-  const {
-    traceToIndex,
-    minScore,
-    maxScore,
-    scoreRange,
-    maxDistributionY,
-    xGains,
-    yGains,
-    gainsThresholds,
-    rocAuc,
-    prAuc,
-    dp,
-    imageSavepath,
-  } = cfg;
+const formatCount = (count) =>
+  count < COMPACT_COUNT_FROM ? count.toLocaleString() : compactNumber.format(count);
 
-  const { domains, height, margin } = getPlotPresentation(
-    document.querySelector("#plot-div").clientWidth,
-  );
+/**
+ * Map each name to its position in the list.
+ * @param {string[]} names - Names in order.
+ * @returns {Map<string, number>} Name to index.
+ */
+const toIndexMap = (names) =>
+  new Map(names.map((traceName, index) => [traceName, index]));
 
-  const TNDistribution = {
-    x: [],
-    y: [],
-    mode: "lines",
-    fill: "tozeroy",
-    line: { color: "salmon" },
-    name: "TN",
-    legendgroup: "Negative",
-    xaxis: "x",
-    yaxis: "y",
-    hoverinfo: "skip",
-  };
-
-  const FPDistribution = {
-    x: [],
-    y: [],
-    mode: "lines",
-    fill: "tozeroy",
-    line: { color: "pink" },
-    name: "FP",
-    legendgroup: "Negative",
-    xaxis: "x",
-    yaxis: "y",
-    hoverinfo: "skip",
-  };
-
-  const FNDistribution = {
-    x: [],
-    y: [],
-    mode: "lines",
-    fill: "tozeroy",
-    line: { color: "green" },
-    name: "FN",
-    legendgroup: "Positive",
-    xaxis: "x3",
-    yaxis: "y3",
-    hoverinfo: "skip",
-  };
-
-  const TPDistribution = {
-    x: [],
-    y: [],
-    mode: "lines",
-    fill: "tozeroy",
-    line: { color: "lightgreen" },
-    name: "TP",
-    legendgroup: "Positive",
-    xaxis: "x3",
-    yaxis: "y3",
-    hoverinfo: "skip",
-  };
-
-  const negDistributionThresholdLine = {
-    x: [],
-    y: [],
-    mode: "lines",
-    line: { dash: "dash", color: "#344c68", width: 1.5 },
-    showlegend: false,
-    xaxis: "x",
-    yaxis: "y",
-    hoverinfo: "skip",
-  };
-
-  const posDistributionThresholdLine = {
-    x: [],
-    y: [],
-    mode: "lines",
-    line: { dash: "dash", color: "#344c68", width: 1.5 },
-    showlegend: false,
-    xaxis: "x3",
-    yaxis: "y3",
-    hoverinfo: "skip",
-  };
-
-  const confusionZ = [
-    [0, 1],
-    [2, 3],
-  ];
-  const confusionColorscale = [
-    [0, "salmon"],
-    [0.25, "salmon"],
-    [0.25, "pink"],
-    [0.5, "pink"],
-    [0.5, "green"],
-    [0.75, "green"],
-    [0.75, "lightgreen"],
-    [1, "lightgreen"],
-  ];
-  const confusionMatrix = {
-    z: confusionZ,
-    x: [0, 1], // Predicted label
-    y: [0, 1], // True label
-    type: "heatmap",
-    colorscale: confusionColorscale,
-    showscale: false,
-    xaxis: "x2",
-    yaxis: "y2",
-    hoverinfo: "skip",
-  };
-
-  const fixedMetricsTableHeader = ["Model metric", "Value"];
-  const fixedMetricsTableCols = [
-    ["ROC AUC", "Average precision"],
-    [rocAuc.toFixed(dp), prAuc.toFixed(dp)],
-  ];
-  const fixedMetricsTable = {
-    type: "table",
-    header: {
-      values: fixedMetricsTableHeader,
-      fill: { color: "#edf2f8" },
-      line: { color: "#dfe5ed", width: 1 },
-      align: ["left", "right"],
-      font: { size: 12, color: "#344c68" },
-      height: 28,
-    },
-    cells: {
-      values: fixedMetricsTableCols,
-      fill: { color: "white" },
-      line: { color: "#e8edf3", width: 1 },
-      align: ["left", "right"],
-      font: { size: 12, color: "#243447" },
-      height: 28,
-    },
-    columnwidth: [1.8, 1],
-    domain: domains.fixedMetrics,
-  };
-
-  const variableMetricsTableHeader = ["Threshold metric", "Value"];
-  const variableMetricsTableCols = [
-    ["Accuracy", "Balanced Accuracy", "Recall", "Precision", "FPR", "F4"],
-    ["--", "--", "--", "--", "--", "--"],
-  ];
-  const variableMetricsTable = {
-    type: "table",
-    header: {
-      values: variableMetricsTableHeader,
-      fill: { color: "#edf2f8" },
-      line: { color: "#dfe5ed", width: 1 },
-      align: ["left", "right"],
-      font: { size: 12, color: "#344c68" },
-      height: 28,
-    },
-    cells: {
-      values: variableMetricsTableCols,
-      fill: { color: "white" },
-      line: { color: "#e8edf3", width: 1 },
-      align: ["left", "right"],
-      font: { size: 12, color: "#243447" },
-      height: 28,
-    },
-    columnwidth: [1.8, 1],
-    domain: domains.variableMetrics,
-  };
-
-  const gainsCurve = {
-    x: xGains,
-    y: yGains,
-    mode: "lines",
-    name: "",
-    line: { width: 2.5, color: "#3479b8", simplify: true },
-    showlegend: false,
-    xaxis: "x4",
-    yaxis: "y4",
-    customdata: gainsThresholds,
-    // Plotly replaces %{...} placeholders when rendering hover text.
-    hovertemplate: `Items reviewed: %{x:.1%}
-      <br>Recall: %{y:.1%}
-      <br>Threshold: %{customdata:.4f}<extra></extra>`,
-    hoverlabel: {
-      bgcolor: "white",
-      bordercolor: "#3479b8",
-      font: { color: "black" },
-    },
-    legendgroup: "",
-  };
-
-  const gainsVerticalProportionLine = {
-    x: [],
-    y: [],
-    mode: "lines",
-    line: { color: "#8293a7", width: 1, dash: "dot" },
-    showlegend: false,
-    xaxis: "x4",
-    yaxis: "y4",
-    name: "",
-  };
-
-  const gainsHorizontalRecallLine = {
-    x: [],
-    y: [],
-    mode: "lines",
-    line: { color: "#8293a7", width: 1, dash: "dot" },
-    showlegend: false,
-    xaxis: "x4",
-    yaxis: "y4",
-    name: "",
-  };
-
-  const confusionMatrixOutline = [
-    {
-      type: "rect",
-      xref: "x2",
-      yref: "y2",
-      x0: -0.5,
-      y0: -0.5,
-      x1: 1.5,
-      y1: 1.5,
-      line: { color: "white", width: 2 },
-    },
-    {
-      type: "line",
-      xref: "x2",
-      yref: "y2",
-      x0: -0.5,
-      y0: 0.5,
-      x1: 1.5,
-      y1: 0.5,
-      line: { color: "white", width: 2 },
-    },
-    {
-      type: "line",
-      xref: "x2",
-      yref: "y2",
-      x0: 0.5,
-      y0: -0.5,
-      x1: 0.5,
-      y1: 1.5,
-      line: { color: "white", width: 2 },
-    },
-  ];
-
-  const data = [];
-
-  // Top-left negative distribution
-  data[traceToIndex.get("TNDistribution")] = TNDistribution;
-  data[traceToIndex.get("FPDistribution")] = FPDistribution;
-  data[traceToIndex.get("negDistributionThresholdLine")] = negDistributionThresholdLine;
-
-  // Bottom-left positive distribution
-  data[traceToIndex.get("FNDistribution")] = FNDistribution;
-  data[traceToIndex.get("TPDistribution")] = TPDistribution;
-  data[traceToIndex.get("PosDistributionThresholdLine")] = posDistributionThresholdLine;
-
-  // Top-right confusion matrix
-  data[traceToIndex.get("ConfusionMatrix")] = confusionMatrix;
-
-  // Top-right tables
-  data[traceToIndex.get("fixedMetricsTable")] = fixedMetricsTable;
-  data[traceToIndex.get("variableMetricsTable")] = variableMetricsTable;
-
-  // Bottom-right gains line + threshold lines
-  data[traceToIndex.get("gainsCurve")] = gainsCurve;
-  data[traceToIndex.get("gainsVerticalProportionLine")] = gainsVerticalProportionLine;
-  data[traceToIndex.get("gainsHorizontalRecallLine")] = gainsHorizontalRecallLine;
-
-  const densityAxis = {
-    range: [
-      minScore - SCORE_AXIS_PADDING_FRACTION * scoreRange,
-      maxScore + SCORE_AXIS_PADDING_FRACTION * scoreRange,
-    ],
-    zeroline: false,
-    gridcolor: "#edf1f5",
-    automargin: true,
-    fixedrange: true,
-  };
-  const densityYAxis = {
-    title: { text: "Density", standoff: 10 },
-    range: [0, maxDistributionY * DENSITY_Y_MAX_FACTOR],
-    gridcolor: "#edf1f5",
-    zeroline: false,
-    automargin: true,
-    fixedrange: true,
-  };
-  const layout = {
-    height,
-    margin,
-    autosize: true,
-    font: {
-      family: "system-ui, -apple-system, Segoe UI, sans-serif",
-      size: 12,
-      color: "#344c68",
-    },
-    showlegend: false,
-    xaxis: { ...densityAxis, domain: domains.negative.x, anchor: "y" },
-    yaxis: { ...densityYAxis, domain: domains.negative.y, anchor: "x" },
-    xaxis2: {
-      domain: domains.confusion.x,
-      anchor: "y2",
-      title: { text: "Predicted class", standoff: 8 },
-      range: [-0.5, 1.5],
-      tickvals: [0, 1],
-      ticktext: ["Negative", "Positive"],
-      showgrid: false,
-      zeroline: false,
-      fixedrange: true,
-    },
-    yaxis2: {
-      domain: domains.confusion.y,
-      anchor: "x2",
-      title: { text: "Actual class", standoff: 8 },
-      range: [1.5, -0.5],
-      tickvals: [0, 1],
-      ticktext: ["Negative", "Positive"],
-      showgrid: false,
-      zeroline: false,
-      fixedrange: true,
-    },
-    xaxis3: {
-      ...densityAxis,
-      domain: domains.positive.x,
-      anchor: "y3",
-      title: { text: "Model score", standoff: 10 },
-    },
-    yaxis3: { ...densityYAxis, domain: domains.positive.y, anchor: "x3" },
-    xaxis4: {
-      domain: domains.gains.x,
-      anchor: "y4",
-      title: { text: "Items reviewed", standoff: 10 },
-      range: [-0.02, 1.02],
-      tickformat: ".0%",
-      gridcolor: "#edf1f5",
-      zeroline: false,
-      fixedrange: true,
-    },
-    yaxis4: {
-      domain: domains.gains.y,
-      anchor: "x4",
-      title: { text: "Recall", standoff: 10 },
-      range: [-0.02, 1.02],
-      tickformat: ".0%",
-      gridcolor: "#edf1f5",
-      zeroline: false,
-      fixedrange: true,
-    },
-    annotations: [],
-    shapes: confusionMatrixOutline,
-    dragmode: false,
-  };
-
-  const plotlySettings = {
-    responsive: true,
+/**
+ * Shared Plotly settings: only the image export button, shown on hover.
+ * Plotly's own responsive mode waits until resizing pauses before redrawing, which
+ * leaves charts at their old size while a window is dragged. initResponsiveLayout()
+ * redraws them on every frame instead.
+ * @param {string} filename - Base filename for the exported image.
+ * @returns {object} Plotly config object.
+ */
+const createPlotlySettings = (filename) => {
+  return {
+    responsive: false,
     scrollZoom: false,
     modeBarButtons: [["toImage"]],
     displaylogo: false,
-    displayModeBar: true,
     toImageButtonOptions: {
       format: "png",
-      filename: imageSavepath,
+      filename,
       // eslint-disable-next-line unicorn/no-null -- Plotly uses null for the current graph size.
       height: null,
       // eslint-disable-next-line unicorn/no-null -- Plotly uses null for the current graph size.
@@ -628,8 +310,188 @@ const createSelectThresholdPlot = (cfg) => {
       scale: 3,
     },
   };
+};
 
-  return Plotly.newPlot("plot-div", data, layout, plotlySettings);
+/**
+ * Build one filled density segment trace.
+ * @param {object} options - Trace options.
+ * @param {string} options.outcome - Outcome name, e.g. "TN".
+ * @param {string} options.color - Outline colour; Plotly fills beneath at half opacity.
+ * @param {string} options.yaxis - Plotly y-axis id.
+ * @returns {object} Plotly scatter trace.
+ */
+const createDensityTrace = ({ outcome, color, yaxis }) => {
+  return {
+    x: [],
+    y: [],
+    mode: "lines",
+    fill: "tozeroy",
+    line: { color, width: 2 },
+    name: outcome,
+    xaxis: "x",
+    yaxis,
+    hoverinfo: "skip",
+  };
+};
+
+/**
+ * Create the stacked negative/positive score density chart.
+ * Negatives sit above positives and both share the score axis.
+ * @param {SelectThresholdCfg} cfg - Plot config data
+ * @returns {Promise<HTMLElement>} The initialized Plotly figure.
+ */
+const createDistributionPlot = (cfg) => {
+  const { distributionTraceIndex, palette, maxDistributionY, scoreAxisRange } = cfg;
+
+  const traces = {
+    TN: createDensityTrace({ outcome: "TN", color: palette.tn, yaxis: "y2" }),
+    FP: createDensityTrace({ outcome: "FP", color: palette.fp, yaxis: "y2" }),
+    FN: createDensityTrace({ outcome: "FN", color: palette.fn, yaxis: "y" }),
+    TP: createDensityTrace({ outcome: "TP", color: palette.tp, yaxis: "y" }),
+  };
+
+  const data = [];
+  for (const [traceName, trace] of Object.entries(traces)) {
+    data[distributionTraceIndex.get(traceName)] = trace;
+  }
+
+  const scoreAxis = {
+    range: scoreAxisRange,
+    showgrid: true,
+    gridcolor: palette.grid,
+    zeroline: false,
+    showline: false,
+    fixedrange: true,
+  };
+
+  const densityYAxis = {
+    range: [0, maxDistributionY * DENSITY_Y_MAX_FACTOR],
+    showticklabels: false,
+    showgrid: false,
+    // The zero line doubles as each panel's baseline.
+    zeroline: true,
+    zerolinecolor: palette.border,
+    zerolinewidth: 1,
+    fixedrange: true,
+  };
+
+  const layout = {
+    autosize: true,
+    margin: { l: 0, r: 4, t: 24, b: 44 },
+    font: { ...PLOT_FONT, color: palette.muted },
+    showlegend: false,
+    xaxis: {
+      ...scoreAxis,
+      anchor: "y",
+      title: { text: "Model score", standoff: 8, font: { color: palette.chartInk } },
+    },
+    xaxis2: { ...scoreAxis, matches: "x", anchor: "y2", showticklabels: false },
+    yaxis: { ...densityYAxis, domain: [0, 0.44] },
+    yaxis2: { ...densityYAxis, domain: [0.56, 1] },
+    annotations: [],
+    shapes: [],
+    dragmode: false,
+    hovermode: false,
+  };
+
+  return Plotly.newPlot(
+    "distribution-plot",
+    data,
+    layout,
+    createPlotlySettings(`${cfg.imageSavepath}-distributions`),
+  );
+};
+
+/**
+ * Create the cumulative gain chart with guide lines to the current threshold.
+ * @param {SelectThresholdCfg} cfg - Plot config data
+ * @returns {Promise<HTMLElement>} The initialized Plotly figure.
+ */
+const createGainsPlot = (cfg) => {
+  const { gainsTraceIndex, palette, xGains, yGains, gainsThresholds } = cfg;
+
+  const guideLine = {
+    x: [],
+    y: [],
+    mode: "lines",
+    line: { color: palette.guide, width: 1, dash: "dot" },
+    hoverinfo: "skip",
+  };
+
+  const traces = {
+    gainsVerticalProportionLine: guideLine,
+    gainsHorizontalRecallLine: { ...guideLine },
+    gainsCurve: {
+      x: xGains,
+      y: yGains,
+      mode: "lines",
+      line: { width: 2.5, color: palette.accent, simplify: true },
+      customdata: gainsThresholds,
+      // Plotly replaces %{...} placeholders when rendering hover text.
+      hovertemplate:
+        "Reviewed %{x:.1%}<br>Recall %{y:.1%}<br>Threshold %{customdata:.4f}<extra></extra>",
+      hoverlabel: {
+        bgcolor: palette.surface,
+        bordercolor: palette.accent,
+        font: { ...PLOT_FONT, color: palette.ink },
+      },
+    },
+    gainsMarker: {
+      x: [],
+      y: [],
+      mode: "markers",
+      cliponaxis: false,
+      marker: {
+        size: 9,
+        color: palette.accent,
+        line: { color: palette.surface, width: 2 },
+      },
+      hoverinfo: "skip",
+    },
+  };
+
+  const data = [];
+  for (const [traceName, trace] of Object.entries(traces)) {
+    data[gainsTraceIndex.get(traceName)] = trace;
+  }
+
+  const percentAxis = {
+    // Pad slightly so the two 0% labels do not collide at the origin.
+    range: [-0.02, 1.02],
+    tickformat: ".0%",
+    dtick: 0.2,
+    gridcolor: palette.grid,
+    zeroline: false,
+    showline: false,
+    fixedrange: true,
+    automargin: true,
+  };
+
+  const layout = {
+    autosize: true,
+    // The top margin keeps room for the 100% label, which Plotly hides if it pokes out.
+    margin: { l: 4, r: 12, t: 8, b: 4 },
+    font: { ...PLOT_FONT, color: palette.muted },
+    showlegend: false,
+    xaxis: {
+      ...percentAxis,
+      title: { text: "Items reviewed", standoff: 8, font: { color: palette.chartInk } },
+    },
+    yaxis: {
+      ...percentAxis,
+      title: { text: "Recall", standoff: 8, font: { color: palette.chartInk } },
+    },
+    annotations: [],
+    dragmode: false,
+    hovermode: "closest",
+  };
+
+  return Plotly.newPlot(
+    "gains-plot",
+    data,
+    layout,
+    createPlotlySettings(`${cfg.imageSavepath}-gains`),
+  );
 };
 
 /**
@@ -713,96 +575,6 @@ const splitPositiveTraceByClassification = (xP, yP, threshold) => {
 };
 
 /**
- * Update UI inputs/displays to reflect the current threshold.
- * @param {SelectThresholdUI} ui - UI elements
- * @param {number} threshold - current decision threshold
- * @param {ClassificationMetrics} metrics - computed metrics at threshold
- * @param {number} dp - decimal places to display
- * @returns {void}
- */
-const updateInputElements = (ui, threshold, metrics, dp) => {
-  ui.recallInput.value = (100 * metrics.TPR).toFixed(2);
-  // Keep rounding from placing an endpoint just outside the input's valid range.
-  const roundedThreshold = Number(threshold.toFixed(dp));
-  const boundedThreshold = Math.min(
-    Number(ui.thresholdInput.max),
-    Math.max(Number(ui.thresholdInput.min), roundedThreshold),
-  );
-  ui.thresholdInput.value = String(boundedThreshold);
-  ui.thresholdSlider.value = String(threshold);
-  ui.thresholdDisplay.textContent = threshold.toFixed(dp);
-
-  ui.recallInput.setAttribute("aria-invalid", "false");
-  ui.thresholdInput.setAttribute("aria-invalid", "false");
-  ui.inputStatus.textContent = "";
-
-  ui.recallInput.dataset.committedValue = ui.recallInput.value;
-  ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
-};
-
-/**
- * Determine visibility of distribution annotations based on threshold.
- * @param {number} threshold - decision threshold
- * @param {number} minScore - minimum score in dataset
- * @param {number} scoreRange - maxScore - minScore
- * @returns {DistributionAnnotationVisibility} - visibility flags
- */
-const distributionsAnnotationVisibility = (threshold, minScore, scoreRange) => {
-  if (
-    threshold >
-    minScore + (1 - DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION) * scoreRange
-  ) {
-    return {
-      distributionTNAnnotationVisible: true,
-      distributionFNAnnotationVisible: true,
-      distributionFPAnnotationVisible: false,
-      distributionTPAnnotationVisible: false,
-    };
-  }
-
-  if (threshold < minScore + DISTRIBUTION_LABEL_HIDE_MARGIN_FRACTION * scoreRange) {
-    return {
-      distributionTNAnnotationVisible: false,
-      distributionFNAnnotationVisible: false,
-      distributionFPAnnotationVisible: true,
-      distributionTPAnnotationVisible: true,
-    };
-  }
-
-  return {
-    distributionTNAnnotationVisible: true,
-    distributionFNAnnotationVisible: true,
-    distributionFPAnnotationVisible: true,
-    distributionTPAnnotationVisible: true,
-  };
-};
-
-/**
- * Build variable-metrics table values (labels and formatted percentages).
- * @param {ClassificationMetrics} metrics - computed metrics at threshold
- * @param {number} dp - decimal places for formatting
- * @returns {VariableTableTraceData} - names and formatted values
- */
-const computeVariableTableTraceData = (metrics, dp) => {
-  const fracToPercent = (v) => `${(100 * v).toFixed(dp)}%`;
-
-  const tableRows = [
-    { mName: "Accuracy", val: metrics.accuracy },
-    { mName: "Balanced Accuracy", val: metrics.balancedAccuracy },
-    { mName: "Recall", val: metrics.TPR },
-    { mName: "Precision", val: metrics.precision },
-    { mName: "Specificity", val: 1 - metrics.FPR },
-    { mName: "FPR", val: metrics.FPR },
-    { mName: "F4", val: metrics.F4 },
-  ];
-
-  return {
-    variableTableMetricNames: tableRows.map(({ mName }) => mName),
-    variableTableMetrics: tableRows.map(({ val }) => fracToPercent(val)),
-  };
-};
-
-/**
  * Compute gains-plot guide lines and proportion examined at a threshold.
  * @param {number} threshold - decision threshold
  * @param {ClassificationMetrics} metrics - metrics at threshold (for recall/TPR)
@@ -830,192 +602,332 @@ const computeGainsHozVerLines = (threshold, metrics, posScores, negScores) => {
 };
 
 /**
- * Recompute traces, annotations, tables, and UI and apply to figure.
+ * Build the dashed threshold lines, panel titles and corner outcome counts.
+ * A corner label is hidden while the threshold line would run through it.
+ * @param {number} threshold - decision threshold
+ * @param {ClassificationMetrics} metrics - metrics at threshold
+ * @param {SelectThresholdCfg} cfg - plot config and data
+ * @param {number} plotWidth - width of the density chart in pixels
+ * @returns {ChartOverlays} Plotly layout annotations and shapes.
+ */
+const createDistributionOverlays = (threshold, metrics, cfg, plotWidth) => {
+  const { palette, scoreAxisRange, posScores, negScores } = cfg;
+  const [axisMin, axisMax] = scoreAxisRange;
+  const position = (threshold - axisMin) / (axisMax - axisMin);
+  const labelZone = OUTCOME_LABEL_INSET_FRACTION + OUTCOME_LABEL_WIDTH_PX / plotWidth;
+  const isLeftLabelVisible = position > labelZone;
+  const isRightLabelVisible = position < 1 - labelZone;
+
+  const outcomeLabel = (outcome, count, yref, isLeft) => {
+    return {
+      text: `${outcome} <b>${count.toLocaleString()}</b>`,
+      x: isLeft ? OUTCOME_LABEL_INSET_FRACTION : 1 - OUTCOME_LABEL_INSET_FRACTION,
+      xref: "paper",
+      y: 0.97,
+      yref,
+      xanchor: isLeft ? "left" : "right",
+      yanchor: "top",
+      showarrow: false,
+      visible: isLeft ? isLeftLabelVisible : isRightLabelVisible,
+      font: { size: 13, color: palette.ink },
+    };
+  };
+
+  const panelTitle = (text, yref) => {
+    return {
+      text,
+      x: 0,
+      xref: "paper",
+      y: 1,
+      yref,
+      xanchor: "left",
+      yanchor: "bottom",
+      yshift: 4,
+      showarrow: false,
+      font: { size: 13, color: palette.chartInk },
+    };
+  };
+
+  return {
+    annotations: [
+      panelTitle(
+        `Actual negatives (${negScores.length.toLocaleString()})`,
+        "y2 domain",
+      ),
+      panelTitle(`Actual positives (${posScores.length.toLocaleString()})`, "y domain"),
+      outcomeLabel("TN", metrics.TN, "y2 domain", true),
+      outcomeLabel("FP", metrics.FP, "y2 domain", false),
+      outcomeLabel("FN", metrics.FN, "y domain", true),
+      outcomeLabel("TP", metrics.TP, "y domain", false),
+    ],
+    shapes: ["y2 domain", "y domain"].map((yref) => {
+      return {
+        type: "line",
+        xref: "x",
+        yref,
+        x0: threshold,
+        x1: threshold,
+        y0: 0,
+        y1: 1,
+        line: { color: palette.chartInk, width: 1.5, dash: "dash" },
+      };
+    }),
+  };
+};
+
+/**
+ * Lowest the gains curve can be at or beyond a point on the x-axis.
+ * The curve never falls as more items are reviewed.
+ * So its last recorded point before x is a lower bound from x onwards.
+ * @param {SelectThresholdCfg} cfg - plot config with the gains curve
+ * @param {number} x - share of items reviewed
+ * @returns {number} Recall the curve stays at or above from x onwards.
+ */
+const gainsFloorFrom = (cfg, x) => {
+  const { xGains, yGains } = cfg;
+  return yGains[Math.max(0, findSplitIndex(xGains, x) - 1)];
+};
+
+/**
+ * Build the readout for the current point on the gains curve.
+ * It sits below and to the right of the point, in the empty space under the curve.
+ * At the right edge it slides left; near the origin it slides right until it fits.
+ * Either way it never covers the line.
+ * @param {number} proportionAbove - share of items reviewed at the threshold
+ * @param {number} recall - recall at the threshold
+ * @param {SelectThresholdCfg} cfg - plot config and data
+ * @param {PlotSize} plotSize - chart size in pixels
+ * @returns {ChartOverlays} Plotly layout annotations.
+ */
+const createGainsOverlays = (proportionAbove, recall, cfg, plotSize) => {
+  const { palette, xGains, yGains } = cfg;
+  const isCompact = plotSize.width < GAINS_COMPACT_WIDTH_PX;
+  const separator = isCompact ? "<br>" : " · ";
+  const reviewText = `Review ${formatPercent(proportionAbove)}`;
+  const text = `${reviewText}${separator}Recall ${formatPercent(recall)}`;
+
+  // Convert the readout's size in pixels to data units on the 0-1 axes.
+  const areaWidth = Math.max(plotSize.width - GAINS_AXES_ALLOWANCE_PX.x, 1);
+  const areaHeight = Math.max(plotSize.height - GAINS_AXES_ALLOWANCE_PX.y, 1);
+  const boxSize = GAINS_READOUT_SIZE_PX[isCompact ? "compact" : "wide"];
+  const offsetX = GAINS_READOUT_OFFSET_PX / areaWidth;
+  const offsetY = GAINS_READOUT_OFFSET_PX / areaHeight;
+  const boxWidth = boxSize.width / areaWidth;
+  const boxHeight = boxSize.height / areaHeight;
+
+  let readoutLeft = Math.min(proportionAbove + offsetX, 1 - boxWidth);
+  let readoutTop = Math.min(recall, gainsFloorFrom(cfg, readoutLeft)) - offsetY;
+  if (readoutTop < boxHeight) {
+    // Near the origin, move right until the curve is high enough to fit beneath.
+    const index = Math.min(
+      findSplitIndex(yGains, boxHeight + 2 * offsetY) + 1,
+      xGains.length - 1,
+    );
+    readoutLeft = Math.min(Math.max(readoutLeft, xGains[index]), 1 - boxWidth);
+    readoutTop = boxHeight;
+  }
+
+  return {
+    annotations: [
+      {
+        text,
+        align: "left",
+        x: readoutLeft,
+        y: readoutTop,
+        xref: "x",
+        yref: "y",
+        xanchor: "left",
+        yanchor: "top",
+        showarrow: false,
+        font: { size: 12, color: palette.chartInk },
+        bgcolor: palette.surface,
+        bordercolor: palette.border,
+        borderwidth: 1,
+        borderpad: 5,
+      },
+    ],
+  };
+};
+
+/**
+ * Replace every digit with 0, so texts that take the same width compare equal.
+ * @param {string} text - text to reduce
+ * @returns {string} The text's shape, e.g. "5.96M" becomes "0.00M".
+ */
+const textShape = (text) =>
+  Array.from(text, (char) => ("0123456789".includes(char) ? "0" : char)).join("");
+
+/**
+ * Measure the width of an element's text, rather than of the box around it.
+ * @param {HTMLElement} element - element holding the text
+ * @returns {number} Text width in pixels.
+ */
+const measureTextWidth = (element) => {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().width;
+};
+
+/**
+ * Show the confusion-matrix counts at one shared size that fits their cells.
+ * The exact count is kept as a tooltip; the density plots and summary show it as well.
+ * Digits are tabular, so a count's width depends only on its shape, such as "0.00M".
+ * So the fit is measured again only when a count changes shape or the cells resize.
+ * @param {SelectThresholdUI} ui - UI elements
+ * @returns {void}
+ */
+const showCellCounts = (ui) => {
+  const { matrix, cellCounts } = ui;
+  for (const count of cellCounts) {
+    const value = Number(count.dataset.value);
+    count.textContent = formatCount(value);
+    count.title = value < COMPACT_COUNT_FROM ? "" : value.toLocaleString();
+  }
+
+  const available = cellCounts[0].clientWidth - 2 * CELL_COUNT_INSET_PX;
+  const shapes = cellCounts.map((count) => textShape(count.textContent));
+  const fitKey = `${shapes.join(" ")} ${available}`;
+  if (matrix.dataset.fitKey === fitKey) return;
+  matrix.dataset.fitKey = fitKey;
+
+  matrix.style.setProperty("--count-scale", "1");
+  const widest = Math.max(...cellCounts.map((count) => measureTextWidth(count)));
+  const scale = Math.max(0, Math.min(1, available / widest));
+  matrix.style.setProperty("--count-scale", String(scale));
+};
+
+/**
+ * Update the inputs, summary sentence, confusion matrix and metrics table.
+ * @param {SelectThresholdUI} ui - UI elements
+ * @param {number} threshold - current decision threshold
+ * @param {ClassificationMetrics} metrics - computed metrics at threshold
+ * @param {SelectThresholdCfg} cfg - plot config and data
+ * @param {number} proportionAbove - share of all items at or above the threshold
+ * @returns {void}
+ */
+const updateInputElements = (ui, threshold, metrics, cfg, proportionAbove) => {
+  const { dp, posScores, negScores } = cfg;
+
+  ui.recallInput.value = (100 * metrics.TPR).toFixed(2);
+  // Round inwards at the endpoints so the shown value stays in the input's valid range.
+  const factor = 10 ** dp;
+  let shownThreshold = Number(threshold.toFixed(dp));
+  if (shownThreshold > Number(ui.thresholdInput.max)) {
+    shownThreshold = Math.floor(threshold * factor) / factor;
+  } else if (shownThreshold < Number(ui.thresholdInput.min)) {
+    shownThreshold = Math.ceil(threshold * factor) / factor;
+  }
+  ui.thresholdInput.value = shownThreshold.toFixed(dp);
+  ui.thresholdSlider.value = String(threshold);
+  ui.thresholdSlider.setAttribute("aria-valuetext", threshold.toFixed(dp));
+
+  ui.recallInput.setAttribute("aria-invalid", "false");
+  ui.thresholdInput.setAttribute("aria-invalid", "false");
+  ui.inputStatus.textContent = "";
+
+  ui.recallInput.dataset.committedValue = ui.recallInput.value;
+  ui.thresholdInput.dataset.committedValue = ui.thresholdInput.value;
+
+  const total = posScores.length + negScores.length;
+  const reviewed = metrics.TP + metrics.FP;
+
+  const textUpdates = {
+    "summary-reviewed": `${reviewed.toLocaleString()} of ${total.toLocaleString()}`,
+    "summary-reviewed-share": `(${formatPercent(proportionAbove)})`,
+    "summary-found": `${metrics.TP.toLocaleString()} of ${posScores.length.toLocaleString()}`,
+    "summary-recall": `(${formatPercent(metrics.TPR)} recall).`,
+  };
+  for (const [id, text] of Object.entries(textUpdates)) {
+    ui.text.get(id).textContent = text;
+  }
+
+  const cellValues = [metrics.TN, metrics.FP, metrics.FN, metrics.TP];
+  for (const [index, count] of ui.cellCounts.entries()) {
+    count.dataset.value = String(cellValues[index]);
+  }
+  showCellCounts(ui);
+
+  const metricUpdates = [
+    ["Accuracy", metrics.accuracy],
+    ["Balanced accuracy", metrics.balancedAccuracy],
+    ["Recall", metrics.TPR],
+    ["Precision", metrics.precision],
+    ["Specificity", 1 - metrics.FPR],
+    ["False positive rate", metrics.FPR],
+  ];
+  for (const [metricName, value] of metricUpdates) {
+    ui.metricValues.get(metricName).textContent = formatPercent(value);
+  }
+};
+
+/**
+ * Recompute traces, annotations and UI for a threshold and apply them.
  * @param {number} threshold - decision threshold
  * @param {SelectThresholdCfg} cfg - plot config and data
  * @param {SelectThresholdUI} ui - UI elements
- * @returns {Promise<HTMLElement>} The updated Plotly figure.
+ * @returns {Promise<HTMLElement[]>} The updated Plotly figures.
  */
 const updatePlot = (threshold, cfg, ui) => {
   const {
-    traceToIndex,
+    distributionTraceIndex,
+    gainsTraceIndex,
     xN,
     yN,
     xP,
     yP,
     posScores,
     negScores,
-    minScore,
-    scoreRange,
-    maxDistributionY,
-    dp,
   } = cfg;
 
   const { xTN, yTN, xFP, yFP } = splitNegativeTraceByClassification(xN, yN, threshold);
-
   const { xFN, yFN, xTP, yTP } = splitPositiveTraceByClassification(xP, yP, threshold);
 
-  // Vertical dashed lines on distributions
-  const lineNegX = [threshold, threshold];
-  const lineNegY = [0, maxDistributionY * DENSITY_Y_MAX_FACTOR];
-  const linePosX = [threshold, threshold];
-  const linePosY = [0, maxDistributionY * DENSITY_Y_MAX_FACTOR];
-
   const metrics = computeClassificationMetrics(threshold, posScores, negScores);
-
-  const { variableTableMetricNames, variableTableMetrics } =
-    computeVariableTableTraceData(metrics, dp);
-
-  const {
-    distributionTNAnnotationVisible,
-    distributionFPAnnotationVisible,
-    distributionFNAnnotationVisible,
-    distributionTPAnnotationVisible,
-  } = distributionsAnnotationVisibility(threshold, minScore, scoreRange);
 
   const { gainsVx, gainsVy, gainsHx, gainsHy, proportionAbove } =
     computeGainsHozVerLines(threshold, metrics, posScores, negScores);
 
-  const FPConfusionAnnotation = {
-    text: `FP<br><b>${metrics.FP.toLocaleString()}</b>`,
-    x: 1,
-    y: 0,
-    xref: "x2",
-    yref: "y2",
-    showarrow: false,
-    font: { color: "white", size: 14 },
-  };
-  const TNConfusionAnnotation = {
-    text: `TN<br><b>${metrics.TN.toLocaleString()}</b>`,
-    x: 0,
-    y: 0,
-    xref: "x2",
-    yref: "y2",
-    showarrow: false,
-    font: { color: "white", size: 14 },
-  };
-  const TPConfusionAnnotation = {
-    text: `TP<br><b>${metrics.TP.toLocaleString()}</b>`,
-    x: 1,
-    y: 1,
-    xref: "x2",
-    yref: "y2",
-    showarrow: false,
-    font: { color: "white", size: 14 },
-  };
-  const FNConfusionAnnotation = {
-    text: `FN<br><b>${metrics.FN.toLocaleString()}</b>`,
-    x: 0,
-    y: 1,
-    xref: "x2",
-    yref: "y2",
-    showarrow: false,
-    font: { color: "white", size: 14 },
-  };
-  const TNDistributionAnnotation = {
-    text: "TN",
-    xref: "x",
-    y: 0.97,
-    yref: "y domain",
-    x: minScore + DISTRIBUTION_LABEL_INSET_FRACTION * scoreRange,
-    visible: distributionTNAnnotationVisible,
-    font: { size: 14 },
-    showarrow: false,
-  };
-  const FPDistributionAnnotation = {
-    text: "FP",
-    xref: "x",
-    y: 0.97,
-    yref: "y domain",
-    x: minScore + (1 - DISTRIBUTION_LABEL_INSET_FRACTION) * scoreRange,
-    visible: distributionFPAnnotationVisible,
-    font: { size: 14 },
-    showarrow: false,
-  };
-  const FNDistributionAnnotation = {
-    text: "FN",
-    xref: "x3",
-    y: 0.97,
-    yref: "y3 domain",
-    x: minScore + DISTRIBUTION_LABEL_INSET_FRACTION * scoreRange,
-    visible: distributionFNAnnotationVisible,
-    font: { size: 14 },
-    showarrow: false,
-  };
-  const TPDistributionAnnotation = {
-    text: "TP",
-    xref: "x3",
-    y: 0.97,
-    yref: "y3 domain",
-    x: minScore + (1 - DISTRIBUTION_LABEL_INSET_FRACTION) * scoreRange,
-    visible: distributionTPAnnotationVisible,
-    font: { size: 14 },
-    showarrow: false,
-  };
-  const gainsSelectionAnnotation = {
-    text: `Review ${(100 * proportionAbove).toFixed(1)}% · Recall ${(
-      100 * metrics.TPR
-    ).toFixed(1)}%`,
-    x: proportionAbove,
-    y: metrics.TPR,
-    xref: "x4",
-    yref: "y4",
-    xanchor: proportionAbove > 0.5 ? "right" : "left",
-    yanchor: metrics.TPR > 0.8 ? "top" : "bottom",
-    xshift: proportionAbove > 0.5 ? -8 : 8,
-    yshift: metrics.TPR > 0.8 ? -8 : 8,
-    font: { size: 11, color: "#344c68" },
-    showarrow: false,
-    bgcolor: "white",
-    bordercolor: "#dfe5ed",
-    borderwidth: 1,
-    borderpad: 5,
-  };
+  updateInputElements(ui, threshold, metrics, cfg, proportionAbove);
+  cfg.currentThreshold = threshold;
 
-  const annotationUpdates = [
-    ...createPanelTitles(),
-    FPConfusionAnnotation,
-    TNConfusionAnnotation,
-    TPConfusionAnnotation,
-    FNConfusionAnnotation,
-    TNDistributionAnnotation,
-    FPDistributionAnnotation,
-    FNDistributionAnnotation,
-    TPDistributionAnnotation,
-    gainsSelectionAnnotation,
+  const distributionUpdates = [
+    { name: "TN", x: xTN, y: yTN },
+    { name: "FP", x: xFP, y: yFP },
+    { name: "FN", x: xFN, y: yFN },
+    { name: "TP", x: xTP, y: yTP },
   ];
 
-  const traceXYUpdates = [
-    { name: "TNDistribution", x: xTN, y: yTN },
-    { name: "FPDistribution", x: xFP, y: yFP },
-    { name: "negDistributionThresholdLine", x: lineNegX, y: lineNegY },
-    { name: "FNDistribution", x: xFN, y: yFN },
-    { name: "TPDistribution", x: xTP, y: yTP },
-    { name: "PosDistributionThresholdLine", x: linePosX, y: linePosY },
+  const gainsUpdates = [
     { name: "gainsVerticalProportionLine", x: gainsVx, y: gainsVy },
     { name: "gainsHorizontalRecallLine", x: gainsHx, y: gainsHy },
-    {
-      name: "variableMetricsTable",
-      cells: [variableTableMetricNames, variableTableMetrics],
-    },
+    { name: "gainsMarker", x: [proportionAbove], y: [metrics.TPR] },
   ];
 
-  updateInputElements(ui, threshold, metrics, dp);
+  const plotWidth = Math.max(ui.distributionPlot.clientWidth, 1);
 
-  const x = traceXYUpdates.map((update) => update.x);
-  const y = traceXYUpdates.map((update) => update.y);
-
-  // Undefined entries leave unrelated trace properties unchanged in Plotly.update.
-  return Plotly.update(
-    "plot-div",
-    {
-      x,
-      y,
-      "cells.values": traceXYUpdates.map((update) => update.cells),
-    },
-    { annotations: annotationUpdates },
-    traceXYUpdates.map((update) => traceToIndex.get(update.name)),
-  );
+  return Promise.all([
+    Plotly.update(
+      "distribution-plot",
+      {
+        x: distributionUpdates.map((update) => update.x),
+        y: distributionUpdates.map((update) => update.y),
+      },
+      createDistributionOverlays(threshold, metrics, cfg, plotWidth),
+      distributionUpdates.map((update) => distributionTraceIndex.get(update.name)),
+    ),
+    Plotly.update(
+      "gains-plot",
+      {
+        x: gainsUpdates.map((update) => update.x),
+        y: gainsUpdates.map((update) => update.y),
+      },
+      createGainsOverlays(proportionAbove, metrics.TPR, cfg, {
+        width: ui.gainsPlot.clientWidth,
+        height: ui.gainsPlot.clientHeight,
+      }),
+      gainsUpdates.map((update) => gainsTraceIndex.get(update.name)),
+    ),
+  ]);
 };
 
 /**
@@ -1124,48 +1036,6 @@ const makeHandleNumberInput = (cfg, ui, isRecall) => {
 };
 
 /**
- * Reposition panels when their container changes width, including browser resizing.
- * Only width changes trigger rendering, so changing plot height cannot create a loop.
- * @param {SelectThresholdCfg} cfg - Plot configuration/data.
- * @param {SelectThresholdUI} ui - UI elements.
- * @returns {void}
- */
-const initResponsiveLayout = (cfg, ui) => {
-  let previousWidth = Math.round(ui.plotDiv.clientWidth);
-  let frame = 0;
-  const observer = new ResizeObserver(([entry]) => {
-    const width = Math.round(entry.contentRect.width);
-    if (width === previousWidth || width === 0) return;
-    previousWidth = width;
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => {
-      const { domains, height, margin } = getPlotPresentation(width);
-      Plotly.update(
-        "plot-div",
-        { domain: [domains.fixedMetrics, domains.variableMetrics] },
-        {
-          height,
-          margin,
-          "xaxis.domain": domains.negative.x,
-          "yaxis.domain": domains.negative.y,
-          "xaxis2.domain": domains.confusion.x,
-          "yaxis2.domain": domains.confusion.y,
-          "xaxis3.domain": domains.positive.x,
-          "yaxis3.domain": domains.positive.y,
-          "xaxis4.domain": domains.gains.x,
-          "yaxis4.domain": domains.gains.y,
-        },
-        [
-          cfg.traceToIndex.get("fixedMetricsTable"),
-          cfg.traceToIndex.get("variableMetricsTable"),
-        ],
-      );
-    });
-  });
-  observer.observe(ui.plotDiv);
-};
-
-/**
  * Initialise and return the select-threshold plot configuration.
  * @returns {SelectThresholdCfg} - Plot config and data
  */
@@ -1176,27 +1046,43 @@ const initConfig = () => {
   plotConfig.gainsThresholds[0] = Infinity;
   plotConfig.gainsThresholds[plotConfig.gainsThresholds.length - 1] = -Infinity;
 
-  const traceOrder = [
-    "TNDistribution",
-    "FPDistribution",
-    "negDistributionThresholdLine",
-    "FNDistribution",
-    "TPDistribution",
-    "PosDistributionThresholdLine",
-    "ConfusionMatrix",
-    "fixedMetricsTable",
-    "variableMetricsTable",
-    "gainsCurve",
+  plotConfig.distributionTraceIndex = toIndexMap(["TN", "FP", "FN", "TP"]);
+  plotConfig.gainsTraceIndex = toIndexMap([
     "gainsVerticalProportionLine",
     "gainsHorizontalRecallLine",
-  ];
-  plotConfig.traceToIndex = new Map(
-    traceOrder.map((traceName, traceIndex) => [traceName, traceIndex]),
-  );
+    "gainsCurve",
+    "gainsMarker",
+  ]);
 
+  plotConfig.scoreAxisRange = [
+    plotConfig.minScore - SCORE_AXIS_PADDING_FRACTION * plotConfig.scoreRange,
+    plotConfig.maxScore + SCORE_AXIS_PADDING_FRACTION * plotConfig.scoreRange,
+  ];
+  plotConfig.palette = readPalette();
   plotConfig.dp = 4;
 
   return plotConfig;
+};
+
+/**
+ * Build the metrics table rows once and return their value cells by metric name.
+ * @param {HTMLElement} tableBody - The table body to fill.
+ * @param {string[]} names - Metric names in display order.
+ * @returns {Map<string, HTMLElement>} Metric name to its value cell.
+ */
+const createMetricsRows = (tableBody, names) => {
+  const values = new Map();
+  for (const metricName of names) {
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    nameCell.textContent = metricName;
+    const valueCell = document.createElement("td");
+    valueCell.textContent = "–";
+    row.append(nameCell, valueCell);
+    tableBody.append(row);
+    values.set(metricName, valueCell);
+  }
+  return values;
 };
 
 /**
@@ -1204,15 +1090,130 @@ const initConfig = () => {
  * @returns {SelectThresholdUI} - resolved UI elements
  */
 const initUI = () => {
+  const textIds = [
+    "summary-reviewed",
+    "summary-reviewed-share",
+    "summary-found",
+    "summary-recall",
+  ];
   return {
     recallInput: document.querySelector("#recall-input"),
     thresholdInput: document.querySelector("#threshold-input"),
     thresholdSlider: document.querySelector("#threshold-slider"),
-    thresholdDisplay: document.querySelector("#threshold-value"),
     inputStatus: document.querySelector("#input-status"),
     resetButton: document.querySelector("#threshold-reset"),
-    plotDiv: document.querySelector("#plot-div"),
+    distributionPlot: document.querySelector("#distribution-plot"),
+    gainsPlot: document.querySelector("#gains-plot"),
+    text: new Map(textIds.map((id) => [id, document.querySelector(`#${id}`)])),
+    metricValues: createMetricsRows(document.querySelector("#threshold-metrics"), [
+      "Accuracy",
+      "Balanced accuracy",
+      "Recall",
+      "Precision",
+      "Specificity",
+      "False positive rate",
+    ]),
+    matrix: document.querySelector(".confusion-matrix"),
+    cellCounts: [...document.querySelectorAll(".cell-count")],
   };
+};
+
+/**
+ * Size both charts to their frames and refresh the overlays that depend on size.
+ * @param {SelectThresholdCfg} cfg - Plot configuration/data.
+ * @param {SelectThresholdUI} ui - UI elements.
+ * @returns {Promise<HTMLElement[]>} The resized Plotly figures.
+ */
+const resizePlots = (cfg, ui) => {
+  const { currentThreshold, posScores, negScores } = cfg;
+  const metrics = computeClassificationMetrics(currentThreshold, posScores, negScores);
+  const { proportionAbove } = computeGainsHozVerLines(
+    currentThreshold,
+    metrics,
+    posScores,
+    negScores,
+  );
+  const distributionSize = {
+    width: ui.distributionPlot.clientWidth,
+    height: ui.distributionPlot.clientHeight,
+  };
+  const gainsSize = {
+    width: ui.gainsPlot.clientWidth,
+    height: ui.gainsPlot.clientHeight,
+  };
+
+  return Promise.all([
+    Plotly.relayout("distribution-plot", {
+      ...distributionSize,
+      ...createDistributionOverlays(
+        currentThreshold,
+        metrics,
+        cfg,
+        distributionSize.width,
+      ),
+    }),
+    Plotly.relayout("gains-plot", {
+      ...gainsSize,
+      ...createGainsOverlays(proportionAbove, metrics.TPR, cfg, gainsSize),
+    }),
+  ]);
+};
+
+/**
+ * Redraw the charts whenever their frames resize, so they follow a dragged window.
+ * ResizeObserver runs after layout and before paint, so the redraw lands in the same frame.
+ * A frame's size never depends on its chart, so redrawing cannot trigger another resize.
+ * The confusion-matrix counts are refitted the same way when their cells change width.
+ * @param {SelectThresholdCfg} cfg - Plot configuration/data.
+ * @param {SelectThresholdUI} ui - UI elements.
+ * @returns {void}
+ */
+const initResponsiveLayout = (cfg, ui) => {
+  const observer = new ResizeObserver(() => {
+    resizePlots(cfg, ui);
+  });
+  observer.observe(ui.distributionPlot);
+  observer.observe(ui.gainsPlot);
+
+  const countObserver = new ResizeObserver(() => {
+    showCellCounts(ui);
+  });
+  countObserver.observe(ui.cellCounts[0]);
+};
+
+/**
+ * Settle the moved panels into their new places when the layout switches.
+ * The distributions panel stays put and only changes width, so it is left alone.
+ * The outcomes and gains panels rise and fade in from partly visible, one after the other.
+ * Only opacity and a small shift animate, which the browser runs alongside chart redraws.
+ * Sliding panels across the page stutters instead, because the charts redraw every frame.
+ * Skipped when the viewer prefers reduced motion.
+ * @returns {void}
+ */
+const initLayoutAnimation = () => {
+  const panels = [...document.querySelectorAll(".panel-outcomes, .panel-gains")];
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  matchMedia(STACKED_LAYOUT_QUERY).addEventListener("change", () => {
+    if (reduceMotion.matches) return;
+    for (const [index, panel] of panels.entries()) {
+      for (const running of panel.getAnimations()) running.cancel();
+      panel.animate(
+        [
+          {
+            opacity: LAYOUT_FADE_FROM_OPACITY,
+            transform: `translateY(${LAYOUT_FADE_SHIFT_PX}px)`,
+          },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        {
+          duration: LAYOUT_ANIMATION_MS,
+          delay: index * LAYOUT_FADE_STAGGER_MS,
+          easing: LAYOUT_ANIMATION_EASING,
+          fill: "backwards",
+        },
+      );
+    }
+  });
 };
 
 /**
@@ -1249,6 +1250,9 @@ const main = async () => {
   try {
     const cfg = initConfig();
     const ui = initUI();
+    document.querySelector("#roc-auc-value").textContent = cfg.rocAuc.toFixed(3);
+    document.querySelector("#average-precision-value").textContent =
+      cfg.prAuc.toFixed(3);
     document.querySelector("#threshold-min").textContent = Number(
       ui.thresholdSlider.min,
     ).toFixed(cfg.dp);
@@ -1256,10 +1260,11 @@ const main = async () => {
       ui.thresholdSlider.max,
     ).toFixed(cfg.dp);
 
-    await createSelectThresholdPlot(cfg);
+    await Promise.all([createDistributionPlot(cfg), createGainsPlot(cfg)]);
     await updatePlot(ui.thresholdSlider.valueAsNumber, cfg, ui);
     initEventListeners(cfg, ui);
     initResponsiveLayout(cfg, ui);
+    initLayoutAnimation();
   } catch {
     const message = document.querySelector("#cdn-fail");
     message.textContent =

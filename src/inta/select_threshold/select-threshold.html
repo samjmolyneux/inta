@@ -3,72 +3,158 @@
 {% block main %}
   <main class="threshold-page" aria-labelledby="threshold-title">
     <header class="threshold-header">
-      <h1 id="threshold-title">Select a decision threshold</h1>
-      <p>Explore the balance between recall and the number of items to review.</p>
+      <div class="threshold-heading">
+        <h1 id="threshold-title">Select a decision threshold</h1>
+        <p>Scores at or above the threshold are classified as positive.</p>
+      </div>
+      <dl class="model-metrics" aria-label="Model metrics, independent of threshold">
+        <div>
+          <dt>ROC AUC</dt>
+          <dd id="roc-auc-value">–</dd>
+        </div>
+        <div>
+          <dt>Average precision</dt>
+          <dd id="average-precision-value">–</dd>
+        </div>
+      </dl>
     </header>
 
-    <section id="select-threshold-controls" aria-label="Threshold controls">
-      <div class="threshold-slider-group">
-        <div id="threshold-display">
+    <section
+      id="select-threshold-controls"
+      class="card"
+      aria-label="Threshold controls"
+    >
+      <div class="controls-main">
+        <div class="slider-group">
           <label for="threshold-slider">Decision threshold</label>
-          <span id="threshold-value">0.5</span>
+          <input
+            type="range"
+            id="threshold-slider"
+            min="{{ slider_min }}"
+            max="{{ slider_max }}"
+            step="{{ slider_step }}"
+            value="{{ slider_default }}"
+          />
+          <div class="slider-range" aria-hidden="true">
+            <span id="threshold-min"></span>
+            <span id="threshold-max"></span>
+          </div>
         </div>
-        <input
-          type="range"
-          id="threshold-slider"
-          min="{{ slider_min }}"
-          max="{{ slider_max }}"
-          step="{{ slider_step }}"
-          value="{{ slider_default }}"
-        />
-        <div class="threshold-range" aria-hidden="true">
-          <span id="threshold-min"></span>
-          <span id="threshold-max"></span>
+
+        <div class="exact-inputs">
+          <div class="field">
+            <label for="threshold-input">Threshold</label>
+            <input
+              type="number"
+              id="threshold-input"
+              min="{{ slider_min }}"
+              max="{{ slider_max }}"
+              step="any"
+              inputmode="decimal"
+              aria-describedby="input-status"
+              required
+            />
+          </div>
+          <div class="field">
+            <label for="recall-input">Recall</label>
+            <span class="input-with-unit">
+              <input
+                type="number"
+                id="recall-input"
+                step="any"
+                min="0"
+                max="100"
+                inputmode="decimal"
+                aria-describedby="input-status"
+                required
+              />
+              <span class="input-unit" aria-hidden="true">%</span>
+            </span>
+          </div>
+          <button type="button" id="threshold-reset">Reset</button>
         </div>
       </div>
 
-      <div class="threshold-field">
-        <label for="threshold-input">Threshold</label>
-        <input
-          type="number"
-          id="threshold-input"
-          min="{{ slider_min }}"
-          max="{{ slider_max }}"
-          step="any"
-          inputmode="decimal"
-          aria-describedby="threshold-input-help input-status"
-          required
-        />
-      </div>
-
-      <div class="threshold-field">
-        <label for="recall-input">Recall (%)</label>
-        <input
-          type="number"
-          id="recall-input"
-          step="any"
-          min="0"
-          max="100"
-          inputmode="decimal"
-          aria-describedby="threshold-input-help input-status"
-          required
-        />
-      </div>
-
-      <button type="button" id="threshold-reset">Reset</button>
-      <p id="threshold-input-help">
-        Drag the slider, or enter a value and press Enter or leave the field. Recall
-        updates to the value achievable with your data.
+      <p id="threshold-summary">
+        Review <strong id="summary-reviewed">–</strong> items
+        <span id="summary-reviewed-share"></span> to find
+        <strong id="summary-found">–</strong> positives
+        <span id="summary-recall"></span>
       </p>
       <p id="input-status" role="status"></p>
     </section>
 
-    <section class="threshold-chart" aria-label="Classification threshold analysis">
-      <p class="threshold-chart-help">
-        Scores at or above the threshold are classified as positive.
-      </p>
-      <div id="plot-div"></div>
-    </section>
+    <div class="threshold-panels">
+      <section class="card panel-distributions" aria-labelledby="distributions-title">
+        <h2 id="distributions-title">Score distributions</h2>
+        <div class="plot-frame plot-frame-distributions">
+          <div id="distribution-plot" class="plot"></div>
+        </div>
+      </section>
+
+      <section class="card panel-outcomes" aria-labelledby="outcomes-title">
+        <h2 id="outcomes-title">Classification outcomes</h2>
+        <div class="outcomes-body">
+          <span class="axis-title axis-title-y" aria-hidden="true">Actual class</span>
+          <table
+            class="confusion-matrix"
+            aria-label="Confusion matrix: rows are the actual class, columns the predicted class"
+          >
+            <tbody>
+              <tr>
+                <th scope="row" class="row-label">Negative</th>
+                <td class="cell cell-tn" aria-label="True negatives">
+                  <span class="cell-name">TN</span>
+                  <span class="cell-count" id="tn-count">–</span>
+                </td>
+                <td class="cell cell-fp" aria-label="False positives">
+                  <span class="cell-name">FP</span>
+                  <span class="cell-count" id="fp-count">–</span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" class="row-label">Positive</th>
+                <td class="cell cell-fn" aria-label="False negatives">
+                  <span class="cell-name">FN</span>
+                  <span class="cell-count" id="fn-count">–</span>
+                </td>
+                <td class="cell cell-tp" aria-label="True positives">
+                  <span class="cell-name">TP</span>
+                  <span class="cell-count" id="tp-count">–</span>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td class="corner"></td>
+                <th scope="col" class="col-label">Negative</th>
+                <th scope="col" class="col-label">Positive</th>
+              </tr>
+            </tfoot>
+          </table>
+          <span class="axis-title axis-title-x" aria-hidden="true"
+            >Predicted class</span
+          >
+
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th scope="col">Threshold metric</th>
+                <th scope="col">Value</th>
+              </tr>
+            </thead>
+            <tbody id="threshold-metrics"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card panel-gains" aria-labelledby="gains-title">
+        <h2 id="gains-title">Cumulative gain</h2>
+        <div class="plot-frame plot-frame-gains">
+          <div id="gains-plot" class="plot"></div>
+        </div>
+      </section>
+    </div>
   </main>
 {% endblock %}
 

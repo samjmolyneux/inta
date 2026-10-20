@@ -1,3 +1,33 @@
+/*
+ * Colour tokens. script.js reads these so the charts and the HTML always match.
+ * Red is an actual negative and green an actual positive; the stronger shade is a
+ * correct prediction and the lighter shade is an error. Plotly fills each density
+ * at half opacity, so the matrix cells use the same half-opacity fills.
+ */
+:root {
+  --ink: #243447;
+  --chart-ink: #344c68;
+  --muted: #68788b;
+  --border: #dfe5ed;
+  --row-line: #e8edf3;
+  --grid: #edf1f5;
+  --header-fill: #edf2f8;
+  --surface: #fff;
+  --page: #f5f7fb;
+  --accent: #3479b8;
+  --guide: #8293a7;
+  --focus: #2b6cbd;
+  --error: #b42332;
+  --tn: salmon;
+  --tn-fill: rgb(250 128 114 / 50%);
+  --fp: pink;
+  --fp-fill: rgb(255 192 203 / 50%);
+  --fn: lightgreen;
+  --fn-fill: rgb(144 238 144 / 50%);
+  --tp: green;
+  --tp-fill: rgb(0 128 0 / 50%);
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
@@ -26,67 +56,134 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  font-size: 0.9375rem;
   line-height: 1.5;
-  color: #243447;
+  color: var(--ink, #243447);
 
-  background: #f5f7fb;
+  background: var(--page, #f5f7fb);
 }
 
 .threshold-page {
+  /*
+   * How much shorter the window is than the page's natural height of about 62.5rem, up
+   * to 23.5rem. Spacing, controls, charts and table rows each give up their share in
+   * step, and the shares add up to 23.5rem. So the page shrinks with the window until it
+   * is 39rem tall, where everything reaches its smallest size together.
+   * "x / 23.5 * deficit" shrinks a size by up to x rem.
+   * Tall windows and the stacked layout keep the full sizes.
+   */
+  --fit-deficit: clamp(0px, 62.5rem - 100vh, 23.5rem);
+
   box-sizing: border-box;
   width: 100%;
-  max-width: 1600px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: clamp(1rem, 2.5vw, 2rem);
+  padding: calc(1.75rem - 1.25 / 23.5 * var(--fit-deficit, 0px))
+    clamp(1rem, 2.5vw, 2rem) calc(2.5rem - 2 / 23.5 * var(--fit-deficit, 0px));
 }
+
+/* Header: title on the left, threshold-independent model scores on the right. */
 
 .threshold-header {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2.5rem;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  margin-bottom: calc(1.25rem - 0.75 / 23.5 * var(--fit-deficit, 0px));
 }
 
-.threshold-header h1 {
-  margin: 0 0 0.35rem;
-
-  font-size: clamp(1.5rem, 2.5vw, 2rem);
-  font-weight: 650;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-}
-
-.threshold-header p {
+.threshold-heading h1 {
   margin: 0;
-  color: #59697b;
+
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
 }
 
-#select-threshold-controls {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) repeat(2, minmax(8rem, 11rem)) auto;
-  gap: 0.75rem 1.5rem;
-  align-items: end;
+.threshold-heading p {
+  margin: 0.25rem 0 0;
+  color: var(--muted, #68788b);
+}
 
-  padding: 1.25rem;
-  border: 1px solid #dfe5ed;
+.model-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  margin: 0;
+}
+
+.model-metrics div {
+  display: flex;
+  flex-flow: column-reverse nowrap;
+}
+
+.model-metrics dt {
+  font-size: 0.8125rem;
+  color: var(--muted, #68788b);
+}
+
+.model-metrics dd {
+  margin: 0;
+
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* Cards: white panels with a muted border on the grey page. */
+
+.card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: calc(1.125rem - 0.5 / 23.5 * var(--fit-deficit, 0px)) 1.25rem
+    calc(1.25rem - 0.5 / 23.5 * var(--fit-deficit, 0px));
+  border: 1px solid var(--border, #dfe5ed);
   border-radius: 12px;
 
-  background: #fff;
+  background: var(--surface, #fff);
 }
 
-.threshold-slider-group,
-.threshold-field {
-  min-width: 0;
+.card h2 {
+  margin: 0 0 calc(0.75rem - 0.375 / 23.5 * var(--fit-deficit, 0px));
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
-#threshold-display {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 1rem;
-  align-items: center;
-  justify-content: space-between;
+/* Controls: drag the slider, or type an exact threshold or recall. */
+
+#select-threshold-controls {
+  position: sticky;
+  z-index: 10;
+  top: 0.5rem;
+
+  padding-top: calc(1.125rem - 0.625 / 23.5 * var(--fit-deficit, 0px));
+  padding-bottom: 0;
+
+  /* Separates the controls from the charts that scroll beneath them. */
+  box-shadow: 0 4px 14px -10px rgb(36 52 71 / 35%);
 }
 
-#threshold-value {
-  font-variant-numeric: tabular-nums;
-  color: #225a9f;
+.controls-main {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  gap: 1rem 2.5rem;
+  align-items: start;
+}
+
+.slider-group label,
+.field label {
+  display: block;
+
+  margin-bottom: 0.375rem;
+
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 #threshold-slider {
@@ -95,119 +192,419 @@ body {
   box-sizing: border-box;
   width: 100%;
   height: 1.5rem;
-  margin: 0.35rem 0 0;
+  margin: calc(0.5rem - 0.5 / 23.5 * var(--fit-deficit, 0px)) 0 0;
+
+  /* Older browsers fall back to their default slider colour. */
+  /* stylelint-disable-next-line plugin/no-unsupported-browser-features */
+  accent-color: var(--accent, #3479b8);
 }
 
-.threshold-range {
+.slider-range {
   display: flex;
   flex-wrap: nowrap;
   justify-content: space-between;
 
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
-  color: #68788b;
+  color: var(--muted, #68788b);
 }
 
-.threshold-field label,
-#threshold-display label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
+.exact-inputs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+
+  padding-left: 2.5rem;
+  border-left: 1px solid var(--border, #dfe5ed);
 }
 
-.threshold-field input {
+.field input {
   box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  height: 2.75rem;
-  margin-top: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #b9c6d6;
+  width: 8rem;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid #c3ccd8;
   border-radius: 6px;
 
   font: inherit;
   font-variant-numeric: tabular-nums;
-  color: #243447;
+  color: var(--ink, #243447);
 
-  background: #fff;
+  background: var(--surface, #fff);
+}
+
+.input-with-unit {
+  position: relative;
+  display: block;
+}
+
+.input-with-unit input {
+  padding-right: 1.75rem;
+}
+
+.input-unit {
+  pointer-events: none;
+
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+
+  color: var(--muted, #68788b);
 }
 
 #threshold-reset {
   cursor: pointer;
 
-  height: 2.75rem;
+  height: 2.5rem;
   padding: 0 1rem;
-  border: 1px solid #b9c6d6;
+  border: 1px solid #c3ccd8;
   border-radius: 6px;
 
   font: inherit;
-  color: #344c68;
+  color: var(--chart-ink, #344c68);
 
-  background: #f6f8fb;
+  background: var(--page, #f5f7fb);
 }
 
-.threshold-field input:focus,
+#threshold-reset:active {
+  background: var(--border, #dfe5ed);
+}
+
+.field input:focus,
 #threshold-reset:focus,
 #threshold-slider:focus {
-  outline: 2px solid #2b6cbd;
-  outline-offset: 3px;
+  outline: 2px solid var(--focus, #2b6cbd);
+  outline-offset: 2px;
 }
 
-.threshold-field input[aria-invalid="true"] {
-  border-color: #b42332;
+.field input[aria-invalid="true"] {
+  border-color: var(--error, #b42332);
 }
 
-#threshold-input-help,
+#threshold-summary {
+  margin: calc(1rem - 0.625 / 23.5 * var(--fit-deficit, 0px)) -1.25rem 0;
+  padding: calc(0.75rem - 0.375 / 23.5 * var(--fit-deficit, 0px)) 1.25rem;
+  border-top: 1px solid var(--row-line, #e8edf3);
+
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #68788b);
+}
+
+#threshold-summary strong {
+  font-weight: 600;
+  color: var(--ink, #243447);
+}
+
 #input-status {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 0.8125rem;
-}
-
-#threshold-input-help {
-  color: #68788b;
-}
-
-#input-status {
-  color: #a61d2b;
+  margin: -0.25rem 0 0;
+  padding-bottom: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--error, #b42332);
 }
 
 #input-status:empty {
   display: none;
 }
 
-.threshold-chart {
-  min-width: 0;
-  margin-top: 1rem;
-  padding: 1rem 0.5rem 0;
-  border: 1px solid #dfe5ed;
-  border-radius: 12px;
+/* Panels: distributions on the left, outcomes and gains stacked on the right. */
 
-  background: #fff;
+.threshold-panels {
+  display: grid;
+  grid-template:
+    "distributions outcomes" auto
+    "distributions gains" 1fr / minmax(0, 1.15fr) minmax(min-content, 1fr);
+  gap: calc(1rem - 0.5 / 23.5 * var(--fit-deficit, 0px)) 1rem;
+  margin-top: calc(1rem - 0.5 / 23.5 * var(--fit-deficit, 0px));
 }
 
-.threshold-chart-help {
-  margin: 0 1rem 0.5rem;
+.panel-distributions,
+.panel-gains {
+  display: flex;
+  flex-flow: column nowrap;
+}
+
+.panel-distributions {
+  grid-area: distributions;
+}
+
+.panel-outcomes {
+  grid-area: outcomes;
+}
+
+.panel-gains {
+  grid-area: gains;
+}
+
+/*
+ * Each chart fills a frame whose size comes only from the page layout. The chart is
+ * taken out of the flow, so its drawn size can never push the layout around, and
+ * script.js redraws it whenever the frame changes size.
+ */
+.plot-frame {
+  position: relative;
+
+  /* Hides the old drawing for the one frame before a resize redraws it. */
+  /* stylelint-disable-next-line plugin/no-unsupported-browser-features */
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plot {
+  position: absolute;
+  inset: 0;
+}
+
+.plot-frame-distributions {
+  min-height: calc(34rem - var(--fit-deficit, 0px));
+}
+
+.plot-frame-gains {
+  min-height: calc(17rem - 8.875 / 23.5 * var(--fit-deficit, 0px));
+}
+
+/* Metrics table, in the style of the original Plotly tables. */
+
+.metrics-table {
+  /* Clips the header fill to the rounded corners; Safari 15 only lacks overflow: clip. */
+  /* stylelint-disable-next-line plugin/no-unsupported-browser-features */
+  overflow: hidden;
+  border-spacing: 0;
+  grid-area: table;
+  align-self: stretch;
+
+  box-sizing: border-box;
+  width: calc(100% - 1.5rem);
+  margin: 3px 0 3px 1.5rem;
+  border: 1px solid var(--border, #dfe5ed);
+  border-radius: 8px;
+
   font-size: 0.8125rem;
-  color: #68788b;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
-#plot-div {
+.metrics-table th,
+.metrics-table td {
+  height: calc(1.875rem - 0.625 / 23.5 * var(--fit-deficit, 0px));
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--row-line, #e8edf3);
+  text-align: left;
+}
+
+.metrics-table thead th {
+  font-weight: 600;
+  color: var(--chart-ink, #344c68);
+  background: var(--header-fill, #edf2f8);
+}
+
+.metrics-table th:last-child,
+.metrics-table td:last-child {
+  text-align: right;
+}
+
+.metrics-table tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Confusion matrix, laid out like a plot with axis titles. */
+
+/*
+ * One grid holds the matrix, its axis titles and the metrics table. The table shares
+ * the matrix's row, so its top meets the top of the cells and its bottom meets the
+ * bottom of the Negative and Positive labels. The 3px inset matches the matrix's
+ * border spacing.
+ */
+.outcomes-body {
+  display: grid;
+  grid-template:
+    "y-title matrix table" auto
+    ". x-title ." auto / auto minmax(14rem, 22rem) minmax(15rem, 25.5rem);
+  gap: 0 0.25rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.axis-title {
+  font-size: 0.8125rem;
+  color: var(--chart-ink, #344c68);
+}
+
+.axis-title-y {
+  transform: rotate(180deg);
+  grid-area: y-title;
+  writing-mode: vertical-rl;
+  text-align: center;
+}
+
+.axis-title-x {
+  grid-area: x-title;
+  padding-left: 4.5rem;
+  text-align: center;
+}
+
+.confusion-matrix {
+  table-layout: fixed;
+  border-spacing: 3px;
+  grid-area: matrix;
+  align-self: stretch;
+
   width: 100%;
-  min-width: 0;
+
+  font-variant-numeric: tabular-nums;
+}
+
+.row-label,
+.col-label {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted, #68788b);
+}
+
+.row-label {
+  width: 4rem;
+  padding-right: 0.25rem;
+  text-align: right;
+}
+
+.col-label {
+  padding-top: 0.25rem;
+  text-align: center;
+}
+
+.corner {
+  width: 4rem;
+}
+
+/* Shrinks 3.5 times as much as a metrics row, so two cells keep pace with seven rows. */
+.cell {
+  height: calc(5.75rem - 2.1875 / 23.5 * var(--fit-deficit, 0px));
+  padding: 0;
+  border: 1.5px solid;
+  border-radius: 6px;
+
+  color: var(--ink, #243447);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.cell-name,
+.cell-count {
+  display: block;
+}
+
+.cell-name {
+  font-size: 0.8125rem;
+  color: var(--chart-ink, #344c68);
+}
+
+/* script.js lowers --count-scale when the longest count would not fit its cell. */
+.cell-count {
+  font-size: calc(1.375rem * var(--count-scale, 1));
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.cell-tn {
+  border-color: var(--tn, salmon);
+  background: var(--tn-fill, rgb(250 128 114 / 50%));
+}
+
+.cell-fp {
+  border-color: var(--fp, pink);
+  background: var(--fp-fill, rgb(255 192 203 / 50%));
+}
+
+.cell-fn {
+  border-color: var(--fn, lightgreen);
+  background: var(--fn-fill, rgb(144 238 144 / 50%));
+}
+
+.cell-tp {
+  border-color: var(--tp, green);
+  background: var(--tp-fill, rgb(0 128 0 / 50%));
 }
 
 /* Keep the older media-query syntax for Safari 15.1 support. */
-/* stylelint-disable-next-line media-feature-range-notation */
-@media (max-width: 760px) {
-  #select-threshold-controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    padding: 1rem;
+/* stylelint-disable media-feature-range-notation */
+/* The right-hand column always keeps the width the matrix and table need side by side.
+   Below this width that would leave the distributions chart too narrow, so the three
+   panels become full-width rows. STACKED_LAYOUT_QUERY in script.js must use the same
+   width. */
+@media (max-width: 1000px) {
+  /* The stacked layout scrolls anyway, so it keeps its full heights. */
+  .threshold-page {
+    --fit-deficit: 0px;
   }
 
-  .threshold-slider-group,
-  #threshold-reset {
-    grid-column: 1 / -1;
+  .threshold-panels {
+    grid-template:
+      "distributions" auto
+      "outcomes" auto
+      "gains" auto / minmax(0, 1fr);
+  }
+
+  .plot-frame-distributions {
+    min-height: 30rem;
+  }
+
+  .plot-frame-gains {
+    min-height: 20rem;
+  }
+
+  /* Keep the matrix cells close to square when the panel is full width. */
+  .outcomes-body {
+    grid-template-columns: auto minmax(14rem, 20rem) minmax(16.5rem, 29rem);
+  }
+
+  .metrics-table {
+    width: calc(100% - 3rem);
+    margin-left: 3rem;
   }
 }
+
+@media (max-width: 760px) {
+  .threshold-page {
+    padding-top: 1.25rem;
+  }
+
+  .controls-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .exact-inputs {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .exact-inputs .field {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .field input {
+    width: 100%;
+  }
+
+  .plot-frame-distributions {
+    min-height: 26rem;
+  }
+}
+
+/* On phones there is no room for the table beside the matrix, so it goes beneath. */
+@media (max-width: 600px) {
+  .outcomes-body {
+    grid-template:
+      "y-title matrix" auto
+      ". x-title" auto
+      "table table" auto / auto minmax(0, 1fr);
+  }
+
+  .metrics-table {
+    width: 100%;
+    margin: 1.25rem 0 0;
+  }
+}
+/* stylelint-enable media-feature-range-notation */
