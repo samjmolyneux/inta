@@ -95,14 +95,29 @@
       <section class="card panel-outcomes" aria-labelledby="outcomes-title">
         <h2 id="outcomes-title">Classification outcomes</h2>
         <div class="outcomes-body">
-          <span class="axis-title axis-title-y" aria-hidden="true">Actual class</span>
           <table
             class="confusion-matrix"
             aria-label="Confusion matrix: rows are the actual class, columns the predicted class"
           >
+            <thead>
+              <tr>
+                <td class="corner"></td>
+                <th scope="col" class="col-label">
+                  <span class="matrix-axis-label">Predicted</span>
+                  <span class="matrix-class-label">Negative</span>
+                </th>
+                <th scope="col" class="col-label">
+                  <span class="matrix-axis-label">Predicted</span>
+                  <span class="matrix-class-label">Positive</span>
+                </th>
+              </tr>
+            </thead>
             <tbody>
               <tr>
-                <th scope="row" class="row-label">Negative</th>
+                <th scope="row" class="row-label">
+                  <span class="matrix-axis-label">Actual</span>
+                  <span class="matrix-class-label">Negative</span>
+                </th>
                 <td class="cell cell-tn" aria-label="True negatives">
                   <span class="cell-name">TN</span>
                   <span class="cell-count" id="tn-count">–</span>
@@ -113,7 +128,10 @@
                 </td>
               </tr>
               <tr>
-                <th scope="row" class="row-label">Positive</th>
+                <th scope="row" class="row-label">
+                  <span class="matrix-axis-label">Actual</span>
+                  <span class="matrix-class-label">Positive</span>
+                </th>
                 <td class="cell cell-fn" aria-label="False negatives">
                   <span class="cell-name">FN</span>
                   <span class="cell-count" id="fn-count">–</span>
@@ -124,17 +142,7 @@
                 </td>
               </tr>
             </tbody>
-            <tfoot>
-              <tr>
-                <td class="corner"></td>
-                <th scope="col" class="col-label">Negative</th>
-                <th scope="col" class="col-label">Positive</th>
-              </tr>
-            </tfoot>
           </table>
-          <span class="axis-title axis-title-x" aria-hidden="true"
-            >Predicted class</span
-          >
 
           <table class="metrics-table">
             <thead>
@@ -149,7 +157,50 @@
       </section>
 
       <section class="card panel-gains" aria-labelledby="gains-title">
-        <h2 id="gains-title">Cumulative gain</h2>
+        <div class="card-heading">
+          <h2 id="gains-title">Cumulative gain</h2>
+          <div id="interval-key" class="interval-key" hidden>
+            <span class="interval-swatch" aria-hidden="true"></span>
+            <span>95% interval</span>
+            <button
+              type="button"
+              id="interval-info-button"
+              class="info-button"
+              aria-label="About the 95% interval"
+              aria-expanded="false"
+              aria-controls="interval-info"
+            >
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                <circle cx="8" cy="8" r="7" />
+                <path d="M8 7.25v4" />
+                <circle class="info-dot" cx="8" cy="4.75" r="0.9" />
+              </svg>
+            </button>
+            <div id="interval-info" class="info-popover" hidden>
+              <p class="info-title">What the shaded band means</p>
+              <p id="interval-info-now"></p>
+              <p>
+                The band shows how far recall could be off by chance alone, treating the
+                <span id="interval-info-positives">–</span> positives here as a random
+                sample: an exact binomial (Clopper–Pearson) interval.
+              </p>
+              <p>
+                The table below demonstrates how the interval changes with number of
+                positives
+              </p>
+              <table class="info-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Positives</th>
+                    <th scope="col">Lower</th>
+                    <th scope="col">Upper</th>
+                  </tr>
+                </thead>
+                <tbody id="interval-info-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
         <div class="plot-frame plot-frame-gains">
           <div id="gains-plot" class="plot"></div>
         </div>

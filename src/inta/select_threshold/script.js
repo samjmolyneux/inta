@@ -29,6 +29,30 @@ const GAINS_AXES_ALLOWANCE_PX = { x: 64, y: 52 };
 // Clear space in pixels kept either side of a confusion-matrix count.
 const CELL_COUNT_INSET_PX = 8;
 
+// Interval ends within this many hundredths of a percent of a rounding step are taken
+// to be on it, so float error never rounds an exact value outwards.
+const PERCENT_ROUNDING_SLACK = 1e-6;
+// How long the interval explanation stays open after the pointer leaves its key.
+const INFO_HIDE_DELAY_MS = 150;
+// Space kept between the explanation and the top or bottom of the viewport.
+const INFO_VIEWPORT_GAP_PX = 8;
+// Fixed examples in the interval table; the current positive count is added in order.
+const INTERVAL_TABLE_SIZES = [10, 100, 1000, 10_000];
+// Share of each tail outside a 95% interval.
+const INTERVAL_TAIL = 0.025;
+// Lanczos approximation of the log gamma function (g = 7, nine coefficients).
+const LANCZOS_G = 7;
+const LANCZOS_COEFFICIENTS = [
+  0.9999999999998099, 676.5203681218851, -1259.1392167224028, 771.3234287776531,
+  -176.6150291621406, 12.507343278686905, -0.13857109526572012, 9.984369578019572e-6,
+  1.5056327351493116e-7,
+];
+// Limits for the incomplete beta continued fraction and the quantile search.
+const BETA_FRACTION_MAX_TERMS = 100_000;
+const BETA_FRACTION_PRECISION = 1e-14;
+const BETA_FRACTION_FLOOR = 1e-300;
+const QUANTILE_STEPS = 60;
+
 // Must match the max-width media query in style.css that stacks the three panels.
 const STACKED_LAYOUT_QUERY = "(max-width: 1000px)";
 // How the moved panels settle into their new places when the layout switches.
@@ -78,11 +102,14 @@ const PLOT_FONT = {
  * @property {number[]} negScores - negative-class scores sorted ascending
  * @property {number[]} xGains - gains curve x (proportion examined)
  * @property {number[]} yGains - gains curve y (recall)
+ * @property {number[]} [gainsRecallLower] - pointwise 95% lower recall limits
+ * @property {number[]} [gainsRecallUpper] - pointwise 95% upper recall limits
  * @property {number[]} gainsThresholds - threshold per gains point
  * @property {number} rocAuc - ROC AUC of model
  * @property {number} prAuc - PR AUC of model
  * @property {number} dp - decimal places for thresholds
  * @property {number} currentThreshold - threshold currently shown
+ * @property {ClassificationMetrics} [intervalMetrics] - metrics the interval explanation describes
  * @property {string} imageSavepath - savepath to save image of plot when plotly save button clicked
  */
 
@@ -96,6 +123,7 @@ const PLOT_FONT = {
  * @property {string} grid - chart grid lines
  * @property {string} surface - card background
  * @property {string} accent - gains curve and its point
+ * @property {string} accentFill - shaded recall interval
  * @property {string} guide - dotted guide lines on the gains chart
  * @property {string} tn - true negatives (correct, negative class)
  * @property {string} fp - false positives (error, negative class)
@@ -244,6 +272,8 @@ const readPalette = () => {
     grid: read("--grid", "#edf1f5"),
     surface: read("--surface", "#fff"),
     accent: read("--accent", "#3479b8"),
+    // Use the uncertainty demo's explicit RGBA colour for Plotly's fill.
+    accentFill: "rgba(52, 121, 184, 0.15)",
     guide: read("--guide", "#8293a7"),
     tn: read("--tn", "salmon"),
     fp: read("--fp", "pink"),
@@ -253,17 +283,18 @@ const readPalette = () => {
 };
 
 /**
- * Format a fraction as a percentage with one decimal place.
+ * Format a fraction as a percentage with two decimal places.
+ * That is four significant figures from 10% up, matching the other metrics.
  * @param {number} fraction - Value between 0 and 1.
- * @returns {string} Formatted percentage, e.g. "79.0%".
+ * @returns {string} Formatted percentage, e.g. "79.04%".
  */
-const formatPercent = (fraction) => `${(100 * fraction).toFixed(1)}%`;
+const formatPercent = (fraction) => `${(100 * fraction).toFixed(2)}%`;
 
 // Counts from this size up are shown in compact form, e.g. 596,039 as "596K".
 const COMPACT_COUNT_FROM = 1000;
 // Formats a count to exactly three significant figures, e.g. 1,598,380 as "1.60M".
-// An empty locale list means the viewer's own language.
-const compactNumber = new Intl.NumberFormat([], {
+// Numbers are always written in English, so they read the same for every viewer.
+const compactNumber = new Intl.NumberFormat("en", {
   notation: "compact",
   minimumSignificantDigits: 3,
   maximumSignificantDigits: 3,
@@ -276,7 +307,51 @@ const compactNumber = new Intl.NumberFormat([], {
  * @returns {string} Formatted count, e.g. "42", "40.2K" or "1.60M".
  */
 const formatCount = (count) =>
-  count < COMPACT_COUNT_FROM ? count.toLocaleString() : compactNumber.format(count);
+  count < COMPACT_COUNT_FROM ? count.toLocaleString("en") : compactNumber.format(count);
+
+/**
+ * Format a count in full, for running text.
+ * @param {number} count - Number of items.
+ * @returns {string} Formatted count, e.g. "1,598,380".
+ */
+const formatFullCount = (count) => count.toLocaleString("en");
+
+// Table counts from this size up are shown in compact form, e.g. 2,000,000 as "2.000M".
+const TABLE_COMPACT_FROM = 100_000;
+// Formats a table count to four significant figures, keeping trailing zeros.
+const tableCompactNumber = new Intl.NumberFormat("en", {
+  notation: "compact",
+  minimumSignificantDigits: 4,
+  maximumSignificantDigits: 4,
+});
+
+/**
+ * Format a count for a table: in full up to 99,999, then compact to four figures.
+ * @param {number} count - Number of items.
+ * @returns {string} Formatted count, e.g. "99,999" or "250.0K".
+ */
+const formatTableCount = (count) => {
+  if (count < TABLE_COMPACT_FROM) return formatFullCount(count);
+  return tableCompactNumber.format(count);
+};
+
+/**
+ * Format an interval's ends as percentages, rounded outwards to two decimal places.
+ * The shown interval then always contains the exact one.
+ * So a lower end just under 100% is never shown as 100.00%, nor an upper end just over 0% as 0.00%.
+ * @param {number} lower - Lower end, from 0 to 1.
+ * @param {number} upper - Upper end, from 0 to 1.
+ * @returns {string[]} The formatted [lower, upper].
+ */
+const formatInterval = (lower, upper) => {
+  // Work in hundredths of a percent, nudged so float error never moves an exact value.
+  let low = Math.floor(10_000 * lower + PERCENT_ROUNDING_SLACK) / 100;
+  let high = Math.ceil(10_000 * upper - PERCENT_ROUNDING_SLACK) / 100;
+  // Even an extremely narrow interval must not imply certainty at either end.
+  if (lower < 1) low = Math.min(low, 99.99);
+  if (upper > 0) high = Math.max(high, 0.01);
+  return [`${low.toFixed(2)}%`, `${high.toFixed(2)}%`];
+};
 
 /**
  * Map each name to its position in the list.
@@ -403,12 +478,32 @@ const createDistributionPlot = (cfg) => {
 };
 
 /**
+ * Check that the configuration has a recall interval for every gains point.
+ * Older saved configurations have none, and still draw without it.
+ * @param {SelectThresholdCfg} cfg - plot config and data
+ * @returns {boolean} Whether the interval can be shown.
+ */
+const hasRecallInterval = (cfg) => {
+  const count = cfg.xGains.length;
+  return (
+    cfg.gainsRecallLower?.length === count && cfg.gainsRecallUpper?.length === count
+  );
+};
+
+/**
  * Create the cumulative gain chart with guide lines to the current threshold.
  * @param {SelectThresholdCfg} cfg - Plot config data
  * @returns {Promise<HTMLElement>} The initialized Plotly figure.
  */
 const createGainsPlot = (cfg) => {
   const { gainsTraceIndex, palette, xGains, yGains, gainsThresholds } = cfg;
+  const hasInterval = hasRecallInterval(cfg);
+  const intervalX = hasInterval ? xGains : [];
+  const intervalStyle = {
+    mode: "lines",
+    line: { width: 0, shape: "hv" },
+    hoverinfo: "skip",
+  };
 
   const guideLine = {
     x: [],
@@ -419,13 +514,25 @@ const createGainsPlot = (cfg) => {
   };
 
   const traces = {
+    gainsUpperInterval: {
+      ...intervalStyle,
+      x: intervalX,
+      y: hasInterval ? cfg.gainsRecallUpper : [],
+    },
+    gainsLowerInterval: {
+      ...intervalStyle,
+      x: intervalX,
+      y: hasInterval ? cfg.gainsRecallLower : [],
+      fill: "tonexty",
+      fillcolor: palette.accentFill,
+    },
     gainsVerticalProportionLine: guideLine,
     gainsHorizontalRecallLine: { ...guideLine },
     gainsCurve: {
       x: xGains,
       y: yGains,
       mode: "lines",
-      line: { width: 2.5, color: palette.accent, simplify: true },
+      line: { width: 2.5, color: palette.accent, shape: "hv" },
       customdata: gainsThresholds,
       // Plotly replaces %{...} placeholders when rendering hover text.
       hovertemplate:
@@ -442,7 +549,7 @@ const createGainsPlot = (cfg) => {
       mode: "markers",
       cliponaxis: false,
       marker: {
-        size: 9,
+        size: 12,
         color: palette.accent,
         line: { color: palette.surface, width: 2 },
       },
@@ -620,7 +727,7 @@ const createDistributionOverlays = (threshold, metrics, cfg, plotWidth) => {
 
   const outcomeLabel = (outcome, count, yref, isLeft) => {
     return {
-      text: `${outcome} <b>${count.toLocaleString()}</b>`,
+      text: `${outcome} <b>${count.toLocaleString("en")}</b>`,
       x: isLeft ? OUTCOME_LABEL_INSET_FRACTION : 1 - OUTCOME_LABEL_INSET_FRACTION,
       xref: "paper",
       y: 0.97,
@@ -648,17 +755,40 @@ const createDistributionOverlays = (threshold, metrics, cfg, plotWidth) => {
     };
   };
 
+  const scoreNotes = [
+    { scores: negScores, yref: "y2 domain" },
+    { scores: posScores, yref: "y domain" },
+  ]
+    // eslint-disable-next-line unicorn/prefer-at -- Support Safari 15.1, which lacks Array.at.
+    .filter(({ scores }) => scores[0] === scores[scores.length - 1])
+    .map(({ scores, yref }) => {
+      const label = scores.length === 1 ? "One score" : "All scores";
+      return {
+        text: `${label}: ${scores[0].toPrecision(4)}<br>No density estimate`,
+        x: 0.5,
+        xref: "paper",
+        y: 0.5,
+        yref,
+        showarrow: false,
+        font: { size: 12, color: palette.muted },
+      };
+    });
+
   return {
     annotations: [
       panelTitle(
-        `Actual negatives (${negScores.length.toLocaleString()})`,
+        `Actual negatives (${negScores.length.toLocaleString("en")})`,
         "y2 domain",
       ),
-      panelTitle(`Actual positives (${posScores.length.toLocaleString()})`, "y domain"),
+      panelTitle(
+        `Actual positives (${posScores.length.toLocaleString("en")})`,
+        "y domain",
+      ),
       outcomeLabel("TN", metrics.TN, "y2 domain", true),
       outcomeLabel("FP", metrics.FP, "y2 domain", false),
       outcomeLabel("FN", metrics.FN, "y domain", true),
       outcomeLabel("TP", metrics.TP, "y domain", false),
+      ...scoreNotes,
     ],
     shapes: ["y2 domain", "y domain"].map((yref) => {
       return {
@@ -781,7 +911,7 @@ const showCellCounts = (ui) => {
   for (const count of cellCounts) {
     const value = Number(count.dataset.value);
     count.textContent = formatCount(value);
-    count.title = value < COMPACT_COUNT_FROM ? "" : value.toLocaleString();
+    count.title = value < COMPACT_COUNT_FROM ? "" : value.toLocaleString("en");
   }
 
   const available = cellCounts[0].clientWidth - 2 * CELL_COUNT_INSET_PX;
@@ -832,9 +962,9 @@ const updateInputElements = (ui, threshold, metrics, cfg, proportionAbove) => {
   const reviewed = metrics.TP + metrics.FP;
 
   const textUpdates = {
-    "summary-reviewed": `${reviewed.toLocaleString()} of ${total.toLocaleString()}`,
+    "summary-reviewed": `${formatFullCount(reviewed)} of ${formatFullCount(total)}`,
     "summary-reviewed-share": `(${formatPercent(proportionAbove)})`,
-    "summary-found": `${metrics.TP.toLocaleString()} of ${posScores.length.toLocaleString()}`,
+    "summary-found": `${formatFullCount(metrics.TP)} of ${formatFullCount(posScores.length)}`,
     "summary-recall": `(${formatPercent(metrics.TPR)} recall).`,
   };
   for (const [id, text] of Object.entries(textUpdates)) {
@@ -858,6 +988,167 @@ const updateInputElements = (ui, threshold, metrics, cfg, proportionAbove) => {
   for (const [metricName, value] of metricUpdates) {
     ui.metricValues.get(metricName).textContent = formatPercent(value);
   }
+};
+
+/**
+ * Work out the natural log of the gamma function, for x of at least 1/2.
+ * @param {number} x - Argument.
+ * @returns {number} ln Γ(x).
+ */
+const logGamma = (x) => {
+  const shifted = x - 1;
+  const [first, ...rest] = LANCZOS_COEFFICIENTS;
+  let sum = first;
+  for (const [index, coefficient] of rest.entries()) {
+    sum += coefficient / (shifted + index + 1);
+  }
+  const base = shifted + LANCZOS_G + 0.5;
+  return (
+    0.5 * Math.log(2 * Math.PI) +
+    (shifted + 0.5) * Math.log(base) -
+    base +
+    Math.log(sum)
+  );
+};
+
+/**
+ * Keep a continued fraction term away from zero, so it can be divided by.
+ * @param {number} value - Term.
+ * @returns {number} The term, or a tiny number in its place.
+ */
+const awayFromZero = (value) =>
+  Math.abs(value) < BETA_FRACTION_FLOOR ? BETA_FRACTION_FLOOR : value;
+
+/**
+ * Evaluate the continued fraction for the incomplete beta function by Lentz's method.
+ * @param {number} a - First shape parameter.
+ * @param {number} b - Second shape parameter.
+ * @param {number} x - Point, where the fraction converges quickly.
+ * @returns {number} Value of the continued fraction.
+ */
+const betaContinuedFraction = (a, b, x) => {
+  let c = 1;
+  let d = 1 / awayFromZero(1 - ((a + b) * x) / (a + 1));
+  let result = d;
+  for (let term = 1; term <= BETA_FRACTION_MAX_TERMS; term += 1) {
+    const twice = 2 * term;
+    const even = (term * (b - term) * x) / ((a + twice - 1) * (a + twice));
+    d = 1 / awayFromZero(1 + even * d);
+    c = awayFromZero(1 + even / c);
+    result *= d * c;
+    const odd = -((a + term) * (a + b + term) * x) / ((a + twice) * (a + twice + 1));
+    d = 1 / awayFromZero(1 + odd * d);
+    c = awayFromZero(1 + odd / c);
+    const change = d * c;
+    result *= change;
+    if (Math.abs(change - 1) < BETA_FRACTION_PRECISION) return result;
+  }
+  return result;
+};
+
+/**
+ * Work out the regularized incomplete beta function: the beta distribution's CDF.
+ * @param {number} x - Point from 0 to 1.
+ * @param {number} a - First shape parameter.
+ * @param {number} b - Second shape parameter.
+ * @returns {number} Probability at or below x.
+ */
+const regularizedBeta = (x, a, b) => {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const front = Math.exp(
+    logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log1p(-x),
+  );
+  if (x < (a + 1) / (a + b + 2)) return (front * betaContinuedFraction(a, b, x)) / a;
+  return 1 - (front * betaContinuedFraction(b, a, 1 - x)) / b;
+};
+
+/**
+ * Find the beta distribution's quantile by bisection.
+ * @param {number} probability - Probability from 0 to 1.
+ * @param {number} a - First shape parameter.
+ * @param {number} b - Second shape parameter.
+ * @returns {number} The point with that probability at or below it.
+ */
+const betaQuantile = (probability, a, b) => {
+  let low = 0;
+  let high = 1;
+  for (let step = 0; step < QUANTILE_STEPS; step += 1) {
+    const middle = (low + high) / 2;
+    if (regularizedBeta(middle, a, b) < probability) low = middle;
+    else high = middle;
+  }
+  return (low + high) / 2;
+};
+
+/**
+ * Work out the exact (Clopper-Pearson) 95% interval for recall, as the Python side does.
+ * @param {number} found - Positives found.
+ * @param {number} total - All positives.
+ * @returns {number[]} The interval's [lower, upper].
+ */
+const clopperPearson = (found, total) => {
+  let lower = 0;
+  let upper = 1;
+  if (found > 0) lower = betaQuantile(INTERVAL_TAIL, found, total - found + 1);
+  if (found < total) upper = betaQuantile(1 - INTERVAL_TAIL, found + 1, total - found);
+  return [lower, upper];
+};
+
+/**
+ * Fill the interval explanation with the interval at the current threshold.
+ * Its table illustrates other sample sizes using rounded whole-number counts found.
+ * @param {SelectThresholdCfg} cfg - plot config and data
+ * @returns {void}
+ */
+const fillIntervalInfo = (cfg) => {
+  const { intervalMetrics: metrics } = cfg;
+  const positives = cfg.posScores.length;
+  const foundText = `${formatFullCount(metrics.TP)} of ${formatFullCount(positives)}`;
+  const currentInterval = clopperPearson(metrics.TP, positives);
+  const [lower, upper] = formatInterval(...currentInterval);
+  document.querySelector("#interval-info-now").textContent = [
+    `At this threshold, ${foundText} positives are found: recall ${formatPercent(metrics.TPR)},`,
+    `with a 95% confidence interval of ${lower} to ${upper}.`,
+  ].join(" ");
+  const sizes = [...new Set([...INTERVAL_TABLE_SIZES, positives])];
+  sizes.sort((a, b) => a - b);
+  const rows = sizes.map((size) => {
+    const isCurrent = size === positives;
+    let found = Math.round(metrics.TPR * size);
+    if (isCurrent) found = metrics.TP;
+    const row = document.createElement("tr");
+    row.classList.toggle("is-current", isCurrent);
+    const sizeCell = document.createElement("th");
+    sizeCell.scope = "row";
+    sizeCell.textContent = formatTableCount(size);
+    sizeCell.title =
+      `${formatFullCount(size)} positives; ${formatFullCount(found)} found ` +
+      `(${formatPercent(found / size)} recall)`;
+    if (isCurrent) sizeCell.textContent += " (this data)";
+    const interval = isCurrent ? currentInterval : clopperPearson(found, size);
+    const bounds = formatInterval(...interval).map((text) => {
+      const cell = document.createElement("td");
+      cell.textContent = text;
+      return cell;
+    });
+    row.append(sizeCell, ...bounds);
+    return row;
+  });
+  document.querySelector("#interval-info-rows").replaceChildren(...rows);
+};
+
+/**
+ * Keep the interval explanation in step with the threshold.
+ * Its intervals take some work, so they are only worked out while it is open.
+ * @param {ClassificationMetrics} metrics - computed metrics at threshold
+ * @param {SelectThresholdCfg} cfg - plot config and data
+ * @returns {void}
+ */
+const updateIntervalInfo = (metrics, cfg) => {
+  if (!hasRecallInterval(cfg)) return;
+  cfg.intervalMetrics = metrics;
+  if (!document.querySelector("#interval-info").hidden) fillIntervalInfo(cfg);
 };
 
 /**
@@ -888,6 +1179,7 @@ const updatePlot = (threshold, cfg, ui) => {
     computeGainsHozVerLines(threshold, metrics, posScores, negScores);
 
   updateInputElements(ui, threshold, metrics, cfg, proportionAbove);
+  updateIntervalInfo(metrics, cfg);
   cfg.currentThreshold = threshold;
 
   const distributionUpdates = [
@@ -1048,6 +1340,8 @@ const initConfig = () => {
 
   plotConfig.distributionTraceIndex = toIndexMap(["TN", "FP", "FN", "TP"]);
   plotConfig.gainsTraceIndex = toIndexMap([
+    "gainsUpperInterval",
+    "gainsLowerInterval",
     "gainsVerticalProportionLine",
     "gainsHorizontalRecallLine",
     "gainsCurve",
@@ -1238,6 +1532,75 @@ const initEventListeners = (cfg, ui) => {
   });
 };
 
+/**
+ * Show the key to the shaded recall interval, with its explanation behind the "i" button.
+ * The explanation opens while the pointer is over the key.
+ * A click or tap keeps it open until the button, Escape or the page outside is pressed.
+ * @param {SelectThresholdCfg} cfg - plot config and data
+ * @returns {void}
+ */
+const initIntervalInfo = (cfg) => {
+  if (!hasRecallInterval(cfg)) return;
+  const key = document.querySelector("#interval-key");
+  const button = document.querySelector("#interval-info-button");
+  const popover = document.querySelector("#interval-info");
+  key.hidden = false;
+  document.querySelector("#interval-info-positives").textContent = formatFullCount(
+    cfg.posScores.length,
+  );
+
+  let isPinned = false;
+  let hideTimer = 0;
+  const show = (isShown) => {
+    clearTimeout(hideTimer);
+    if (isShown === !popover.hidden) return;
+    popover.hidden = !isShown;
+    button.setAttribute("aria-expanded", String(isShown));
+    if (!isShown) return;
+    fillIntervalInfo(cfg);
+    // Use the side with more room when the full explanation does not fit below.
+    popover.classList.remove("is-above");
+    popover.style.maxHeight = "";
+    const box = popover.getBoundingClientRect();
+    const roomAbove =
+      key.closest(".card").getBoundingClientRect().top - INFO_VIEWPORT_GAP_PX;
+    const roomBelow = innerHeight - box.top - INFO_VIEWPORT_GAP_PX;
+    const isAbove = box.height > roomBelow && roomAbove > roomBelow;
+    popover.classList.toggle("is-above", isAbove);
+    let available = roomBelow;
+    if (isAbove) {
+      available = popover.getBoundingClientRect().bottom - INFO_VIEWPORT_GAP_PX;
+    }
+    popover.style.maxHeight = `${Math.max(0, Math.floor(available))}px`;
+  };
+  key.addEventListener("mouseenter", () => {
+    show(true);
+  });
+  // A short delay lets the pointer cross the gap between the key and the explanation.
+  key.addEventListener("mouseleave", () => {
+    if (isPinned) return;
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      show(false);
+    }, INFO_HIDE_DELAY_MS);
+  });
+  button.addEventListener("click", () => {
+    isPinned = !isPinned;
+    show(isPinned);
+  });
+  document.addEventListener("click", (clickEvent) => {
+    if (key.contains(clickEvent.target)) return;
+    isPinned = false;
+    show(false);
+  });
+  document.addEventListener("keydown", (keyEvent) => {
+    if (keyEvent.key !== "Escape" || popover.hidden) return;
+    isPinned = false;
+    show(false);
+    button.focus();
+  });
+};
+
 const main = async () => {
   const loader = document.querySelector("#plot-loading");
 
@@ -1250,9 +1613,9 @@ const main = async () => {
   try {
     const cfg = initConfig();
     const ui = initUI();
-    document.querySelector("#roc-auc-value").textContent = cfg.rocAuc.toFixed(3);
+    document.querySelector("#roc-auc-value").textContent = cfg.rocAuc.toFixed(4);
     document.querySelector("#average-precision-value").textContent =
-      cfg.prAuc.toFixed(3);
+      cfg.prAuc.toFixed(4);
     document.querySelector("#threshold-min").textContent = Number(
       ui.thresholdSlider.min,
     ).toFixed(cfg.dp);
@@ -1265,6 +1628,7 @@ const main = async () => {
     initEventListeners(cfg, ui);
     initResponsiveLayout(cfg, ui);
     initLayoutAnimation();
+    initIntervalInfo(cfg);
   } catch {
     const message = document.querySelector("#cdn-fail");
     message.textContent =

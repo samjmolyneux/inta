@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import plotly.figure_factory as ff
+from scipy.stats import beta
 from sklearn.metrics import average_precision_score, roc_auc_score
 
 from inta.template_renderer import render_template
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
 
 MAX_GAINS_POINTS = 10_000
+RECALL_CONFIDENCE_LEVEL = 0.95
 
 
 def select_threshold_plot(
@@ -43,21 +45,31 @@ def select_threshold_plot(
     Raises
     ------
     ValueError
-        If ``y`` does not contain exactly the two labels 0 and 1.
+        If the inputs are not aligned one-dimensional arrays, scores are not
+        finite, or ``y`` does not contain exactly the two labels 0 and 1.
 
     Notes
     -----
     The plot combines class score densities, a gains curve, threshold-dependent
-    confusion counts, ROC AUC and average precision.
+    confusion counts, ROC AUC and average precision. The gains curve includes
+    pointwise 95% exact binomial recall intervals, not a simultaneous band.
 
     """
+    y = np.asarray(y)
+    scores = np.asarray(scores, dtype=np.float64)
+    if y.ndim != 1 or scores.ndim != 1 or len(y) != len(scores):
+        msg = "y and scores must be one-dimensional arrays of the same length"
+        raise ValueError(msg)
+    if not np.isfinite(scores).all():
+        msg = "scores must contain only finite values"
+        raise ValueError(msg)
     if np.unique(y).tolist() != [0, 1]:
         msg = "y must be binary labels 0 and 1"
         raise ValueError(msg)
 
     order = np.argsort(scores)
-    scores = np.array(scores)[order]
-    y = np.array(y)[order]
+    scores = scores[order]
+    y = y[order]
 
     pos_scores = scores[y == 1]
     neg_scores = scores[y == 0]
@@ -65,22 +77,31 @@ def select_threshold_plot(
     x_N, y_N = _get_density_curve_data([scores[y == 0]])
     x_P, y_P = _get_density_curve_data([scores[y == 1]])
 
-    max_distribution_y = max(*y_N, *y_P)
+    max_distribution_y = (
+        max(float(np.max(y_N, initial=0)), float(np.max(y_P, initial=0))) or 1.0
+    )
 
     roc_auc = roc_auc_score(y, scores)
     pr_auc = average_precision_score(y, scores)
 
     gain_curve_xs, gain_curve_ys, gain_curve_thresholds = compute_gains_data(y, scores)
+    recall_lower, recall_upper = _get_gains_recall_intervals(
+        gain_curve_ys, len(pos_scores)
+    )
 
     min_score = scores[0]
     max_score = scores[-1]
+    # Equal scores still need room on the axes and a usable threshold slider.
+    score_range = max_score - min_score
+    if score_range == 0:
+        score_range = max(1.0, abs(float(min_score)))
 
     config = {
         "document_title": "Select Threshold",
-        "slider_min": min_score - 0.01 * (max_score - min_score),
-        "slider_max": max_score + 0.01 * (max_score - min_score),
-        "slider_default": (max_score - min_score) / 2,
-        "slider_step": (max_score - min_score) / 10000,
+        "slider_min": min_score - 0.01 * score_range,
+        "slider_max": max_score + 0.01 * score_range,
+        "slider_default": min_score + (max_score - min_score) / 2,
+        "slider_step": score_range / 10000,
         "plot_config": {
             "xN": x_N.tolist(),
             "yN": y_N.tolist(),
@@ -93,9 +114,11 @@ def select_threshold_plot(
             "negScores": neg_scores.tolist(),
             "xGains": gain_curve_xs.tolist(),
             "yGains": gain_curve_ys.tolist(),
+            "gainsRecallLower": recall_lower.tolist(),
+            "gainsRecallUpper": recall_upper.tolist(),
             "minScore": min_score,
             "maxScore": max_score,
-            "scoreRange": max_score - min_score,
+            "scoreRange": score_range,
             "maxDistributionY": max_distribution_y,
             "imageSavepath": image_savepath,
         },
@@ -106,6 +129,32 @@ def select_threshold_plot(
         config=config,
         savepath=savepath,
     )
+
+
+def _get_gains_recall_intervals(
+    recalls: NDArray[np.float64], positive_count: int
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """
+    Return pointwise Clopper-Pearson limits aligned with the gains curve.
+
+    These are fixed-threshold binomial intervals, not a simultaneous confidence
+    band or a guarantee for thresholds selected interactively on these labels.
+    Use the same limits as the uncertainty demonstration, including when none
+    or all of the observed positive examples have been found.
+    """
+    found = np.rint(recalls * positive_count).astype(np.int64)
+    tail = (1 - RECALL_CONFIDENCE_LEVEL) / 2
+    lower = np.zeros_like(recalls)
+    upper = np.ones_like(recalls)
+    has_found = found > 0
+    has_missed = found < positive_count
+    lower[has_found] = beta.ppf(
+        tail, found[has_found], positive_count - found[has_found] + 1
+    )
+    upper[has_missed] = beta.ppf(
+        1 - tail, found[has_missed] + 1, positive_count - found[has_missed]
+    )
+    return lower, upper
 
 
 def _get_density_curve_data(
@@ -129,7 +178,16 @@ def _get_density_curve_data(
     y_dist_data: np.array
         array with y coordinates data for the density curve
 
+    Notes
+    -----
+    A class with fewer than two distinct scores has no density estimate. Return
+    empty coordinates; the page explains this while keeping its counts usable.
+
     """
+    values = np.asarray(data[0])
+    if len(values) < 2 or np.ptp(values) == 0:
+        return np.array([], dtype=np.float64), np.array([], dtype=np.float64)
+
     fig = ff.create_distplot(
         data,
         ["data"],
@@ -173,41 +231,40 @@ def compute_gains_data(
 
     Notes
     -----
-    Interior points are recorded at positive examples. If there are more than
-    ``MAX_GAINS_POINTS`` such points, they are downsampled by recall bins before
+    Each interior point includes every record tied at its score threshold.
+    Only groups that increase recall are retained. If there are more than
+    ``MAX_GAINS_POINTS`` such groups, they are downsampled by recall bins before
     the endpoints are added.
 
     """
     y_desc = y_asc[::-1]
-    pos_scores_asc = scores_asc[y_asc == 1]
-    pos_scores_desc = pos_scores_asc[::-1]
+    scores_desc = scores_asc[::-1]
 
     n = len(y_asc)
-    proportions = (np.arange(n) + 1) / n
-
-    n_pos = len(pos_scores_asc)
-    recalls = np.cumsum(y_desc) / n_pos
-
-    # Proportions and recalls increase as threshold decreases, so use y_desc
-    pos_proportions = proportions[y_desc == 1]
-    pos_recalls = recalls[y_desc == 1]
-    pos_thresholds = pos_scores_desc
+    found = np.cumsum(y_desc)
+    n_pos = found[-1]
+    group_ends = np.flatnonzero(np.r_[scores_desc[:-1] != scores_desc[1:], True])
+    found_by_group = found[group_ends]
+    positive_groups = np.diff(np.r_[0, found_by_group]) > 0
+    positive_ends = group_ends[positive_groups]
+    pos_proportions = (positive_ends + 1) / n
+    pos_recalls = found[positive_ends] / n_pos
+    pos_thresholds = scores_desc[positive_ends]
 
     # Downsample the interior points before adding the curve endpoints.
     if len(pos_recalls) > MAX_GAINS_POINTS:
-        bin_edges = np.linspace(1 / MAX_GAINS_POINTS, 1, MAX_GAINS_POINTS)
-        insert_indices = np.searchsorted(pos_recalls, bin_edges, side="right")
-
-        # The code above gives us each idx we would place bin_edges into pos_recalls
-        # to keep it sorted such that the bin_edge is placed to the right of any
-        # duplicates. Therefore, each idx-1 is the last index in each bin.
-        keep_indices = insert_indices - 1
+        bin_edges = np.linspace(pos_recalls[0], 1, MAX_GAINS_POINTS)
+        keep_indices = np.unique(np.searchsorted(pos_recalls, bin_edges))
         pos_recalls = pos_recalls[keep_indices]
         pos_proportions = pos_proportions[keep_indices]
         pos_thresholds = pos_thresholds[keep_indices]
 
     gain_curve_xs = np.concatenate(([0], pos_proportions, [1]))
     gain_curve_ys = np.concatenate(([0], pos_recalls, [1]))
-    gains_thresholds = np.concatenate(([None], pos_thresholds, [None]))
+    gains_thresholds: NDArray[np.object_] = np.empty(
+        len(pos_thresholds) + 2, dtype=object
+    )
+    gains_thresholds[0] = gains_thresholds[-1] = None
+    gains_thresholds[1:-1] = pos_thresholds
 
     return gain_curve_xs, gain_curve_ys, gains_thresholds
