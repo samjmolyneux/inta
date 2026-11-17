@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "joblib",
     "numpy",
-    "plotly",
+    "plotly<7",
     "scikit-learn"
 ]
 description = "Interactive Plots for ML"
